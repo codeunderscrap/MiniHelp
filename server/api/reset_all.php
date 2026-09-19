@@ -1,8 +1,7 @@
 <?php
 // api/reset_all.php
-
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json; charset=UTF-8");
+require_once '../config/cors.php';
+setup_cors();
 
 include_once '../config/db.php';
 $database = new Database();

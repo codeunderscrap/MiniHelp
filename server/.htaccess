@@ -1,0 +1,7 @@
+RewriteEngine On
+
+# MM OS SSO endpoints — clean URLs without .php extension
+RewriteRule ^_mmos/accept$  _mmos/accept.php  [L]
+RewriteRule ^_mmos/session$ _mmos/session.php [L]
+RewriteRule ^_mmos/health$  _mmos/health.php  [L]
+RewriteRule ^_mmos/info$    _mmos/info.php    [L]

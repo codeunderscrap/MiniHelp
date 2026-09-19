@@ -1,7 +1,7 @@
 <?php
+require_once '../config/cors.php';
+setup_cors();
 require_once '../config/db.php';
-
-header('Content-Type: application/json');
 
 $method = $_SERVER['REQUEST_METHOD'];
 $database = new Database();

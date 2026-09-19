@@ -1,6 +1,7 @@
 <?php
 // api/avatar.php
-header("Access-Control-Allow-Origin: *");
+require_once '../config/cors.php';
+setup_cors();
 
 include_once '../config/db.php';
 

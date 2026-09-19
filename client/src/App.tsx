@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { CreateTicket } from './pages/CreateTicket';
@@ -18,9 +18,35 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SSOBootstrap({ children }: { children: React.ReactNode }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { loginFromSSO, isAuthenticated } = useAuthStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const mmos_token = searchParams.get('mmos_token');
+    if (mmos_token && !isAuthenticated) {
+      const stored = localStorage.getItem('minihelp-auth-storage');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed?.state?.user && parsed?.state?.isAuthenticated) {
+            loginFromSSO(parsed.state.user, mmos_token);
+          }
+        } catch {}
+      }
+      // Clean the URL
+      searchParams.delete('mmos_token');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, isAuthenticated, loginFromSSO, setSearchParams, navigate]);
+
+  return <>{children}</>;
+}
+
 export default function App() {
   const theme = useAuthStore(state => state.theme);
-  
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
 
@@ -31,7 +57,6 @@ export default function App() {
       'sound_critical': '/notification.mp3'
     };
 
-    // Fetch latest sound settings
     fetch('/api/settings.php')
       .then(res => res.json())
       .then(data => {
@@ -52,7 +77,7 @@ export default function App() {
 
     navigator.serviceWorker?.addEventListener('message', playNotificationSound);
     window.addEventListener('play-sound', playNotificationSound as EventListener);
-    
+
     return () => {
       navigator.serviceWorker?.removeEventListener('message', playNotificationSound);
       window.removeEventListener('play-sound', playNotificationSound as EventListener);
@@ -61,22 +86,22 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        
-        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route index element={<Dashboard />} />
-          <Route path="tickets" element={<TicketList />} />
-          <Route path="tickets/new" element={<CreateTicket />} />
-          <Route path="tickets/kanban" element={<Kanban />} />
-          <Route path="tickets/:id" element={<TicketDetail />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-        
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <SSOBootstrap>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            <Route index element={<Dashboard />} />
+            <Route path="tickets" element={<TicketList />} />
+            <Route path="tickets/new" element={<CreateTicket />} />
+            <Route path="tickets/kanban" element={<Kanban />} />
+            <Route path="tickets/:id" element={<TicketDetail />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </SSOBootstrap>
     </BrowserRouter>
   );
 }
-
-

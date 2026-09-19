@@ -14,6 +14,7 @@ interface AuthState {
   isAuthenticated: boolean;
   theme: 'dark' | 'light';
   login: (user: User, token: string) => void;
+  loginFromSSO: (user: User, token: string) => void;
   logout: () => void;
   toggleTheme: () => void;
 }
@@ -25,6 +26,10 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       theme: (localStorage.getItem('minihelp_theme') as 'dark' | 'light') || 'light',
       login: (user, token) => {
+        localStorage.setItem('minihelp_token', token);
+        set({ user, isAuthenticated: true });
+      },
+      loginFromSSO: (user, token) => {
         localStorage.setItem('minihelp_token', token);
         set({ user, isAuthenticated: true });
       },
