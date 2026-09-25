@@ -283,58 +283,23 @@ else if ($method === 'POST') {
                 error_log("In-App Notification Error: " . $e->getMessage());
             }
 
-            // --- TRIGGER WEB PUSH NOTIFICATION ---
+            // --- WEB PUSH NOTIFICATION (best effort; the ticket is already committed) ---
             try {
-                if (file_exists('../vendor/autoload.php')) {
-                    require_once '../vendor/autoload.php';
-                    $auth = [
-                        'VAPID' => [
-                            'subject' => 'mailto:admin@minimines.com',
-                            'publicKey' => 'BINJS1-br47yD9q-ytF4CQKB8m_0jmFlI0lKFdeVklUjwaJsqPNA7MsiJh-Wpj7gq-NRuHq-J0laTTf2MCrDFDI',
-                            'privateKey' => 'pESv5fwAWR-Cxf5-l8y5DiSTGsI4aHEUJarBUaIIuyM',
-                        ]
-                    ];
-                    
-                    if (class_exists('\Minishlink\WebPush\WebPush')) {
-                        $webPush = new \Minishlink\WebPush\WebPush($auth);
-                        
-                        // Ignore errors if table is missing or query fails
-                        $sQuery = "SELECT p.* FROM push_subscriptions p JOIN users u ON p.user_id = u.id WHERE u.department_id = :did";
-                        $sStmt = $db->prepare($sQuery);
-                        $sStmt->execute([":did" => $data['department_id']]);
-                        $subs = $sStmt->fetchAll(PDO::FETCH_ASSOC);
-                        
-                        // Get Department name
-                        $dStmt = $db->prepare("SELECT name FROM departments WHERE id = ?");
-                        $dStmt->execute([$data['department_id']]);
-                        $deptName = $dStmt->fetchColumn() ?: 'System';
-                        
-                        $payload = json_encode([
-                            "title" => "New Ticket: " . $ticket_number,
-                            "body" => "Dept: $deptName\nPriority: " . ucfirst($priority) . "\n" . $data['title'],
-                            "url" => "/tickets/" . $last_id,
-                            "priority" => $priority // Will be used by frontend for specific sounds
-                        ]);
-                        
-                        foreach ($subs as $sub) {
-                            $subscription = \Minishlink\WebPush\Subscription::create([
-                                'endpoint' => $sub['endpoint'],
-                                'keys' => [
-                                    'p256dh' => $sub['p256dh'],
-                                    'auth' => $sub['auth']
-                                ],
-                            ]);
-                            $webPush->queueNotification($subscription, $payload);
-                        }
-                        foreach ($webPush->flush() as $report) {}
-                    }
-                }
+                require_once '../config/push.php';
+                $sStmt = $db->prepare("SELECT p.* FROM push_subscriptions p JOIN users u ON p.user_id = u.id WHERE u.department_id = :did");
+                $sStmt->execute([":did" => $data['department_id']]);
+                $dStmt = $db->prepare("SELECT name FROM departments WHERE id = ?");
+                $dStmt->execute([$data['department_id']]);
+                $deptName = $dStmt->fetchColumn() ?: 'System';
+                send_push($db, $sStmt->fetchAll(PDO::FETCH_ASSOC), json_encode([
+                    "title" => "New Ticket: " . $ticket_number,
+                    "body" => "Dept: $deptName\nPriority: " . ucfirst($priority) . "\n" . $data['title'],
+                    "url" => "/tickets/" . $last_id,
+                    "priority" => $priority // Will be used by frontend for specific sounds
+                ]));
             } catch (\Throwable $e) {
-                // Silently ignore push notification errors (e.g. table not found or library missing)
-                // The ticket was already successfully created and committed.
                 error_log("Push Notification Error: " . $e->getMessage());
             }
-            // -------------------------------------
             
             echo json_encode(["success" => true, "data" => ["id" => $last_id, "ticket_number" => $ticket_number]]);
         } catch(PDOException $e) {

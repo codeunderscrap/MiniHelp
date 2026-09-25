@@ -44,11 +44,23 @@ export function Dashboard() {
   const subscribeToPush = async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
-      const vapidPublicKey = 'BINJS1-br47yD9q-ytF4CQKB8m_0jmFlI0lKFdeVklUjwaJsqPNA7MsiJh-Wpj7gq-NRuHq-J0laTTf2MCrDFDI';
-      
+      const keyRes = await api.get('/push_key.php');
+      const serverKey = urlB64ToUint8Array(keyRes.data.publicKey);
+
+      // A subscription made with an earlier server key can't receive pushes; replace it.
+      const existing = await registration.pushManager.getSubscription();
+      if (existing) {
+        const existingKey = existing.options.applicationServerKey
+          ? new Uint8Array(existing.options.applicationServerKey)
+          : null;
+        const sameKey = !!existingKey && existingKey.length === serverKey.length
+          && existingKey.every((b, i) => b === serverKey[i]);
+        if (!sameKey) await existing.unsubscribe();
+      }
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlB64ToUint8Array(vapidPublicKey)
+        applicationServerKey: serverKey
       });
 
       await api.post('/subscribe.php', {

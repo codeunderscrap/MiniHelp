@@ -84,53 +84,23 @@ else if ($method === 'POST') {
 
                 // --- PUSH NOTIFICATION (BEST EFFORT) ---
                 try {
-                    require_once '../vendor/autoload.php';
-                    if (class_exists('\Minishlink\WebPush\WebPush')) {
-                        $auth = [
-                            'VAPID' => [
-                                'subject' => 'mailto:admin@minimines.com',
-                                'publicKey' => 'BINJS1-br47yD9q-ytF4CQKB8m_0jmFlI0lKFdeVklUjwaJsqPNA7MsiJh-Wpj7gq-NRuHq-J0laTTf2MCrDFDI',
-                                'privateKey' => 'pESv5fwAWR-Cxf5-l8y5DiSTGsI4aHEUJarBUaIIuyM',
-                            ]
-                        ];
-                        $webPush = new \Minishlink\WebPush\WebPush($auth);
-
-                        // Notify assignee, creator, or department head
-                        $sQuery = "
-                            SELECT p.* FROM push_subscriptions p 
-                            JOIN users u ON p.user_id = u.id 
-                            WHERE p.user_id IN (:creator_id, :assignee_id) 
-                            AND p.user_id != :uid
-                        ";
-                        $sStmt = $db->prepare($sQuery);
-                        $sStmt->execute([
-                            ":creator_id" => $ticket['creator_id'],
-                            ":assignee_id" => $ticket['assignee_id'] ? $ticket['assignee_id'] : 0,
-                            ":uid" => $data->user_id
-                        ]);
-                        $subs = $sStmt->fetchAll(PDO::FETCH_ASSOC);
-
-                        // Get Department name
-                        $dStmt = $db->prepare("SELECT name FROM departments WHERE id = ?");
-                        $dStmt->execute([$ticket['department_id']]);
-                        $deptName = $dStmt->fetchColumn() ?: 'System';
-                        
-                        $payload = json_encode([
-                            "title" => "New Comment: " . $ticket['ticket_number'],
-                            "body" => "Dept: $deptName\nFrom: " . $me->name . "\n" . substr($data->content, 0, 100),
-                            "url" => "/tickets/" . $ticket_id,
-                            "priority" => $ticket['priority']
-                        ]);
-
-                        foreach($subs as $sub) {
-                            $subscription = \Minishlink\WebPush\Subscription::create([
-                                "endpoint" => $sub['endpoint'],
-                                "keys" => ['p256dh' => $sub['p256dh'], 'auth' => $sub['auth']],
-                            ]);
-                            $webPush->queueNotification($subscription, $payload);
-                        }
-                        foreach ($webPush->flush() as $report) {}
-                    }
+                    require_once '../config/push.php';
+                    // Notify the creator and the assignee, never the commenter
+                    $sStmt = $db->prepare("SELECT p.* FROM push_subscriptions p WHERE p.user_id IN (:creator_id, :assignee_id) AND p.user_id != :uid");
+                    $sStmt->execute([
+                        ":creator_id" => $ticket['creator_id'],
+                        ":assignee_id" => $ticket['assignee_id'] ? $ticket['assignee_id'] : 0,
+                        ":uid" => $data->user_id
+                    ]);
+                    $dStmt = $db->prepare("SELECT name FROM departments WHERE id = ?");
+                    $dStmt->execute([$ticket['department_id']]);
+                    $deptName = $dStmt->fetchColumn() ?: 'System';
+                    send_push($db, $sStmt->fetchAll(PDO::FETCH_ASSOC), json_encode([
+                        "title" => "New Comment: " . $ticket['ticket_number'],
+                        "body" => "Dept: $deptName\nFrom: " . $me->name . "\n" . substr($data->content, 0, 100),
+                        "url" => "/tickets/" . $ticket_id,
+                        "priority" => $ticket['priority']
+                    ]));
                 } catch (\Throwable $e) {
                     error_log("Push Notification Error (Comments): " . $e->getMessage());
                 }
