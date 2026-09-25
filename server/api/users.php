@@ -4,18 +4,34 @@ require_once '../config/cors.php';
 setup_cors();
 
 include_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 
 $database = new Database();
 $db = $database->getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Extremely basic auth check for demo (in production, validate Bearer token)
-$headers = apache_request_headers();
-// if(!isset($headers['Authorization'])) {
-//     http_response_code(401);
-//     echo json_encode(["success" => false, "error" => "Unauthorized"]);
-//     exit;
-// }
+$me = require_auth($db);
+
+// Reading the directory is staff work (anyone may read their own record). Changing users is for
+// admins and department heads, and only an admin may create, edit or delete an admin.
+if ($method === 'GET') {
+    $self = isset($_GET['id']) && (int)$_GET['id'] === $me->user_id;
+    if (!$self) require_staff($me);
+} else {
+    require_manager($me);
+    if (!$me->is_admin()) {
+        $body = json_decode(file_get_contents("php://input"), true);
+        if (is_array($body) && ($body['role'] ?? null) === 'admin') deny(403, 'Only an admin can grant the admin role');
+        if (isset($_GET['id'])) {
+            $t = $db->prepare("SELECT role FROM users WHERE id = :id");
+            $t->execute([':id' => $_GET['id']]);
+            if ($t->fetchColumn() === 'admin') deny(403, 'Only an admin can change an admin');
+        }
+    }
+    if ($method === 'DELETE' && isset($_GET['id']) && (int)$_GET['id'] === $me->user_id) {
+        deny(400, 'You cannot delete your own account');
+    }
+}
 
 if ($method === 'GET') {
     try {

@@ -2,15 +2,24 @@
 require_once '../config/cors.php';
 setup_cors();
 require_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $database = new Database();
 $db = $database->getConnection();
+$me = get_authenticated_user($db);
+if ($method !== 'GET') {
+    if (!$me) deny(401, 'Authentication required');
+    require_manager($me);
+}
 
 if ($method === 'GET') {
     try {
         $stmt = $db->query("SELECT setting_key, setting_value FROM system_settings");
         $settings = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            // The app shell reads notification sounds before sign-in; everything else
+            // (SLA targets, priority rules) is for signed-in managers only.
+            if (!($me && $me->is_manager()) && strpos($row['setting_key'], 'sound_') !== 0) continue;
             $settings[$row['setting_key']] = $row['setting_value'];
         }
         echo json_encode(["success" => true, "data" => $settings]);

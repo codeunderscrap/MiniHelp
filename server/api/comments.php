@@ -4,14 +4,18 @@ require_once '../config/cors.php';
 setup_cors();
 
 include_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 
 $database = new Database();
 $db = $database->getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
+$me = require_auth($db);
 
 if ($method === 'GET') {
     $ticket_id = isset($_GET['ticket_id']) ? $_GET['ticket_id'] : null;
     if ($ticket_id) {
+        $visible = load_ticket($db, $ticket_id);
+        if (!$visible || !can_view_ticket($me, $visible)) deny(404, 'Ticket not found');
         try {
             $query = "SELECT c.*, u.name as user_name, u.role as user_role 
                       FROM comments c 
@@ -34,8 +38,14 @@ if ($method === 'GET') {
 } 
 else if ($method === 'POST') {
     $data = json_decode(file_get_contents("php://input"));
+    if (is_object($data)) {
+        // Comments are always posted as the signed-in user.
+        $data->user_id = $me->user_id;
+    }
     
     if(!empty($data->ticket_id) && !empty($data->user_id) && !empty($data->content)) {
+        $visible = load_ticket($db, $data->ticket_id);
+        if (!$visible || !can_view_ticket($me, $visible)) deny(404, 'Ticket not found');
         try {
             $query = "INSERT INTO comments SET ticket_id=:tid, user_id=:uid, content=:content";
             $stmt = $db->prepare($query);
@@ -107,7 +117,7 @@ else if ($method === 'POST') {
                         
                         $payload = json_encode([
                             "title" => "New Comment: " . $ticket['ticket_number'],
-                            "body" => "Dept: $deptName\nFrom: " . $data->user_id . "\n" . substr($data->content, 0, 100),
+                            "body" => "Dept: $deptName\nFrom: " . $me->name . "\n" . substr($data->content, 0, 100),
                             "url" => "/tickets/" . $ticket_id,
                             "priority" => $ticket['priority']
                         ]);

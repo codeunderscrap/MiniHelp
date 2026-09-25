@@ -4,10 +4,13 @@ require_once '../config/cors.php';
 setup_cors();
 
 include_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 
 $database = new Database();
 $db = $database->getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
+$me = require_auth($db);
+if ($method !== 'GET') require_manager($me);
 
 // Ensure sla_configs table exists
 $initQuery = "CREATE TABLE IF NOT EXISTS sla_configs (

@@ -4,11 +4,14 @@ require_once '../config/cors.php';
 setup_cors();
 
 include_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 $database = new Database();
 $db = $database->getConnection();
+$me = require_auth($db);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user_id = isset($_POST['user_id']) ? $_POST['user_id'] : null;
+    // Users change only their own avatar; the user_id form field is ignored.
+    $user_id = $me->user_id;
     
     if (!$user_id) {
         http_response_code(400);
@@ -18,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
         $fileInfo = pathinfo($_FILES['avatar']['name']);
-        $ext = strtolower($fileInfo['extension']);
+        $ext = strtolower($fileInfo['extension'] ?? '');
         $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         
         if (!in_array($ext, $allowed)) {

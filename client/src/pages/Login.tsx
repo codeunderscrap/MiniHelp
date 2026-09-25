@@ -10,6 +10,7 @@ export function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [ssoUrl, setSsoUrl] = useState<string | null>(null);
+  const [localLogin, setLocalLogin] = useState(true);
   const login = useAuthStore(state => state.login);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const navigate = useNavigate();
@@ -23,7 +24,10 @@ export function Login() {
       .then(r => r.json())
       .then(data => {
         if (data.auth_mode === 'http' && data.os_url) {
-          setSsoUrl(data.os_url);
+          setSsoUrl(data.launch_url || data.os_url);
+        }
+        if (data.local_login === false) {
+          setLocalLogin(false);
         }
       })
       .catch(() => {});
@@ -62,6 +66,7 @@ export function Login() {
           
           {error && <div className="login-error">{error}</div>}
 
+          {localLogin && (
           <form onSubmit={handleLogin} className="login-form">
             <div className="form-group">
               <label>Email Address</label>
@@ -95,9 +100,12 @@ export function Login() {
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+          )}
           {ssoUrl && (
             <div style={{ marginTop: '20px', textAlign: 'center' }}>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '12px' }}>or</div>
+              {localLogin && (
+                <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '12px' }}>or</div>
+              )}
               <a
                 href={ssoUrl}
                 className="btn-primary login-btn"

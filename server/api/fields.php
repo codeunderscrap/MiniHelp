@@ -2,10 +2,13 @@
 require_once '../config/cors.php';
 setup_cors();
 require_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $database = new Database();
 $db = $database->getConnection();
+$me = require_auth($db);
+if ($method !== 'GET') require_manager($me);
 
 if ($method === 'GET') {
     $dept_id = isset($_GET['department_id']) ? $_GET['department_id'] : null;
