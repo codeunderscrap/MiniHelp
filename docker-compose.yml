@@ -38,6 +38,9 @@ services:
       MINIHELP_SESSION_SECRET: ${MINIHELP_SESSION_SECRET:-}
       MINIHELP_ALLOW_LOCAL_LOGIN: ${MINIHELP_ALLOW_LOCAL_LOGIN:-}
       MINIHELP_ALLOWED_ORIGINS: ${MINIHELP_ALLOWED_ORIGINS:-}
+      # Optional: without these a VAPID key pair is generated once and kept in the database.
+      MINIHELP_VAPID_PUBLIC_KEY: ${MINIHELP_VAPID_PUBLIC_KEY:-}
+      MINIHELP_VAPID_PRIVATE_KEY: ${MINIHELP_VAPID_PRIVATE_KEY:-}
     depends_on:
       - db
 
