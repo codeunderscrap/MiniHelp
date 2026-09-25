@@ -42,6 +42,11 @@ services:
       DB_NAME: minimines_helpdesk
       DB_USER: minihelp_user
       DB_PASS: minihelp_password
+      MMOS_OS_URL: ${MMOS_OS_URL:-https://m-mines.in}
+      MMOS_SERVICE_SLUG: ${MMOS_SERVICE_SLUG:-servicedesk}
+      MMOS_SERVICE_KEY: ${MMOS_SERVICE_KEY:-}
+      MMOS_ISSUER: ${MMOS_ISSUER:-https://m-mines.in}
+      MMOS_ENVIRONMENT: ${MMOS_ENVIRONMENT:-production}
     depends_on:
       - db
 
