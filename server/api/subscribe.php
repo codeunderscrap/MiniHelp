@@ -4,11 +4,17 @@ require_once '../config/cors.php';
 setup_cors();
 
 include_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 
 $database = new Database();
 $db = $database->getConnection();
+$me = require_auth($db);
 
 $data = json_decode(file_get_contents("php://input"));
+if (is_object($data)) {
+    // Push subscriptions always belong to the signed-in user.
+    $data->user_id = $me->user_id;
+}
 
 if(!empty($data->user_id) && !empty($data->subscription)) {
     try {

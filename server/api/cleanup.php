@@ -1,12 +1,17 @@
 <?php
+require_once '../config/cors.php';
+setup_cors();
 require_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 
-header('Content-Type: application/json');
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Only allow POST or GET depending on how cron/admin calls it
 $database = new Database();
 $db = $database->getConnection();
+
+// Deletes tickets, so it is POST-only and limited to admins and department heads.
+if ($method !== 'POST') deny(405, 'Method not allowed');
+require_manager(require_auth($db));
 
 try {
     // Optional: Get days parameter, default to 30

@@ -8,28 +8,16 @@ services:
     labels:
       - "traefik.enable=false"
     environment:
-      MYSQL_ROOT_PASSWORD: minimines_root
+      # Set these in Coolify. The defaults are the original values, which are public in this
+      # repo: rotate them (ALTER USER in MySQL, then the same value here) and drop the defaults.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-minimines_root}
       MYSQL_DATABASE: minimines_helpdesk
       MYSQL_USER: minihelp_user
-      MYSQL_PASSWORD: minihelp_password
+      MYSQL_PASSWORD: ${DB_PASS:-minihelp_password}
     volumes:
       - db_data:/var/lib/mysql
       - ./server/setup.sql:/docker-entrypoint-initdb.d/1_setup.sql
       - ./server/update_push.sql:/docker-entrypoint-initdb.d/2_update_push.sql
-
-  phpmyadmin:
-    image: phpmyadmin:latest
-    restart: always
-    environment:
-      PMA_HOST: db
-      PMA_USER: minimines_root
-      PMA_PASSWORD: minimines_root
-    labels:
-      - "traefik.enable=false"
-    ports:
-      - "8081:80"
-    depends_on:
-      - db
 
   backend-api:
     build:
@@ -41,12 +29,15 @@ services:
       DB_HOST: db
       DB_NAME: minimines_helpdesk
       DB_USER: minihelp_user
-      DB_PASS: minihelp_password
+      DB_PASS: ${DB_PASS:-minihelp_password}
       MMOS_OS_URL: ${MMOS_OS_URL:-https://m-mines.in}
       MMOS_SERVICE_SLUG: ${MMOS_SERVICE_SLUG:-servicedesk}
       MMOS_SERVICE_KEY: ${MMOS_SERVICE_KEY:-}
       MMOS_ISSUER: ${MMOS_ISSUER:-https://m-mines.in}
       MMOS_ENVIRONMENT: ${MMOS_ENVIRONMENT:-production}
+      MINIHELP_SESSION_SECRET: ${MINIHELP_SESSION_SECRET:-}
+      MINIHELP_ALLOW_LOCAL_LOGIN: ${MINIHELP_ALLOW_LOCAL_LOGIN:-}
+      MINIHELP_ALLOWED_ORIGINS: ${MINIHELP_ALLOWED_ORIGINS:-}
     depends_on:
       - db
 

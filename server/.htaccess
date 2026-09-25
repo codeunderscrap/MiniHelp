@@ -1,5 +1,16 @@
 RewriteEngine On
 
+# Never serve maintenance scripts, SQL, config, dependencies or dotfiles over HTTP.
+# Maintenance scripts run from the container shell: cd /var/www/html/maintenance && php <script>.php
+RewriteRule ^(maintenance|config|vendor|node_modules)(/|$) - [F,L]
+RewriteRule (^|/)\. - [F,L]
+RewriteRule \.(sql|json|lock|phar|md)$ - [F,L]
+RewriteRule ^(composer|package)[^/]*$ - [F,L]
+RewriteRule ^(fix_avatar_column|generate_vapid)\.php$ - [F,L]
+
+# Uploaded files are data, never code.
+RewriteRule ^api/uploads/.*\.(php\d?|phtml|phar|pht|phps)$ - [F,L,NC]
+
 # MM OS SSO endpoints — clean URLs without .php extension
 RewriteRule ^_mmos/accept$  _mmos/accept.php  [L]
 RewriteRule ^_mmos/session$ _mmos/session.php [L]

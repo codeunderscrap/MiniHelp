@@ -1,6 +1,11 @@
 <?php
 require_once '../config/cors.php';
 setup_cors();
+require_once '../config/db.php';
+require_once '../config/auth_middleware.php';
+
+$db = (new Database())->getConnection();
+require_manager(require_auth($db));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_FILES['sound']) && $_FILES['sound']['error'] === UPLOAD_ERR_OK) {
@@ -10,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         $fileInfo = pathinfo($_FILES['sound']['name']);
-        $ext = strtolower($fileInfo['extension']);
+        $ext = strtolower($fileInfo['extension'] ?? '');
         $allowed = ['mp3', 'wav', 'ogg'];
         
         if (!in_array($ext, $allowed)) {

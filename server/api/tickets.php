@@ -4,16 +4,30 @@ require_once '../config/cors.php';
 setup_cors();
 
 include_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 
 $database = new Database();
 $db = $database->getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
+$me = require_auth($db);
+
+// Attachments keep their original name in the database but are stored under a random name
+// with an allowlisted extension, so an upload can never be executed by the web server.
+const ATTACHMENT_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'txt', 'csv', 'log',
+                               'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'mp4', 'mov'];
 
 if ($method === 'GET') {
     try {
         $id = isset($_GET['id']) ? $_GET['id'] : null;
-        
+
         if ($id) {
+            $visible = load_ticket($db, $id);
+            if (!$visible || !can_view_ticket($me, $visible)) {
+                http_response_code(404);
+                echo json_encode(["success" => false, "error" => "Ticket not found"]);
+                exit();
+            }
+
             // Get single ticket
             $query = "SELECT t.*, d.name as department_name, d.code as department_code, 
                       u1.name as creator_name, u2.name as assignee_name,
@@ -81,38 +95,34 @@ if ($method === 'GET') {
                 echo json_encode(["success" => false, "error" => "Ticket not found"]);
             }
         } else {
-            // List all tickets
-            $user_role = isset($_GET['role']) ? $_GET['role'] : 'admin';
-            $user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
-            $dept_id = isset($_GET['department_id']) ? $_GET['department_id'] : null;
-            
-            $query = "SELECT t.*, d.name as department_name, d.code as department_code, 
+            // List tickets. The scope comes from the signed-in user, never from the query string
+            // (the role/user_id/department_id params the SPA still sends are ignored).
+            $query = "SELECT t.*, d.name as department_name, d.code as department_code,
                       u1.name as creator_name, u2.name as assignee_name,
                       u1.avatar_url as creator_avatar, u2.avatar_url as assignee_avatar
-                      FROM tickets t 
-                      LEFT JOIN departments d ON t.department_id = d.id 
-                      LEFT JOIN users u1 ON t.creator_id = u1.id 
+                      FROM tickets t
+                      LEFT JOIN departments d ON t.department_id = d.id
+                      LEFT JOIN users u1 ON t.creator_id = u1.id
                       LEFT JOIN users u2 ON t.assignee_id = u2.id ";
-                      
-            if ($user_role === 'employee' && $user_id) {
-                $query .= "WHERE t.creator_id = :uid ";
-            } else if ($user_role === 'agent' && $dept_id) {
-                $query .= "WHERE t.department_id = :did OR t.creator_id = :uid ";
-            } else if ($user_role === 'dept_head' && $dept_id) {
-                $query .= "WHERE t.department_id = :did ";
+            $params = [];
+
+            if (!$me->is_admin()) {
+                $scope = ["t.creator_id = :uid"];
+                $params[':uid'] = $me->user_id;
+                if ($me->is_staff()) {
+                    $scope[] = "t.assignee_id = :uid2";
+                    $params[':uid2'] = $me->user_id;
+                    if ($me->department_id !== null) {
+                        $scope[] = "t.department_id = :did";
+                        $params[':did'] = $me->department_id;
+                    }
+                }
+                $query .= "WHERE " . implode(" OR ", $scope) . " ";
             }
             $query .= "ORDER BY t.created_at DESC";
-            
+
             $stmt = $db->prepare($query);
-            if ($user_role === 'employee' && $user_id) {
-                $stmt->bindParam(":uid", $user_id);
-            } else if ($user_role === 'agent' && $dept_id) {
-                $stmt->bindParam(":did", $dept_id);
-                $stmt->bindParam(":uid", $user_id);
-            } else if ($user_role === 'dept_head' && $dept_id) {
-                $stmt->bindParam(":did", $dept_id);
-            }
-            $stmt->execute();
+            $stmt->execute($params);
             $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
             echo json_encode(["success" => true, "data" => $tickets]);
         }
@@ -125,7 +135,11 @@ else if ($method === 'POST') {
     // Check if multipart form data (with file) or raw JSON
     $isMultipart = !empty($_POST['data']);
     $data = $isMultipart ? json_decode($_POST['data'], true) : json_decode(file_get_contents("php://input"), true);
-    
+    if (is_array($data)) {
+        // Tickets are always raised as the signed-in user.
+        $data['creator_id'] = $me->user_id;
+    }
+
         if(!empty($data['title']) && !empty($data['description']) && !empty($data['department_id']) && !empty($data['creator_id'])) {
         try {
             $db->beginTransaction();
@@ -205,12 +219,20 @@ else if ($method === 'POST') {
 
             // Handle Attachments
             if (!empty($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $ext = strtolower(pathinfo($_FILES['attachment']['name'], PATHINFO_EXTENSION));
+                if (!in_array($ext, ATTACHMENT_EXTENSIONS, true)) {
+                    $db->rollBack();
+                    http_response_code(400);
+                    echo json_encode(["success" => false, "error" => "That file type can't be attached."]);
+                    exit();
+                }
+
                 $uploadDir = 'uploads/';
                 if (!is_dir($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
                 }
-                
-                $fileName = time() . '_' . basename($_FILES['attachment']['name']);
+
+                $fileName = time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
                 $targetPath = $uploadDir . $fileName;
                 
                 // Compress Image safely
@@ -331,6 +353,17 @@ else if ($method === 'PATCH') {
     $data = json_decode(file_get_contents("php://input"), true);
     
     if($id && !empty($data['status'])) {
+        $ticket = load_ticket($db, $id);
+        if (!$ticket || !can_view_ticket($me, $ticket)) {
+            http_response_code(404);
+            echo json_encode(["success" => false, "error" => "Ticket not found"]);
+            exit();
+        }
+        if (!can_work_ticket($me, $ticket)) {
+            http_response_code(403);
+            echo json_encode(["success" => false, "error" => "Not allowed"]);
+            exit();
+        }
         try {
             $query = "UPDATE tickets SET status=:status";
             $params = [":status" => $data['status'], ":id" => $id];

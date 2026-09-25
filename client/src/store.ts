@@ -34,6 +34,8 @@ export const useAuthStore = create<AuthState>()(
         set({ user, isAuthenticated: true });
       },
       logout: () => {
+        // Clears the HttpOnly session cookie, which the page itself cannot touch.
+        fetch('/api/auth.php', { method: 'DELETE', credentials: 'same-origin' }).catch(() => {});
         localStorage.removeItem('minihelp_token');
         set({ user: null, isAuthenticated: false });
       },

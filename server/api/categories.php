@@ -4,8 +4,11 @@ require_once '../config/cors.php';
 setup_cors();
 
 include_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 $database = new Database();
 $db = $database->getConnection();
+$me = require_auth($db);
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') require_manager($me);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {

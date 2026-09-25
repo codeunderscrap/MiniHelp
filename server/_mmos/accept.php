@@ -33,9 +33,9 @@ header("Cache-Control: no-store");
     return r.json();
   }).then(function (data) {
     history.replaceState(null, "", window.location.pathname);
-    // Store user data and token for the SPA
+    // Store the MiniHelp session token (not the MM OS token) and user data for the SPA
     try {
-      localStorage.setItem("minihelp_token", token);
+      localStorage.setItem("minihelp_token", data.token);
       if (data.user) {
         localStorage.setItem("minihelp-auth-storage", JSON.stringify({
           state: { user: data.user, isAuthenticated: true },

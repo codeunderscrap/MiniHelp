@@ -4,13 +4,16 @@ require_once '../config/cors.php';
 setup_cors();
 
 include_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 
 $database = new Database();
 $db = $database->getConnection();
 $method = $_SERVER['REQUEST_METHOD'];
+$me = require_auth($db);
 
 if ($method === 'GET') {
-    $user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
+    // Always the signed-in user's own notifications; any user_id param is ignored.
+    $user_id = $me->user_id;
     if (!$user_id) {
         http_response_code(400);
         echo json_encode(["success" => false, "error" => "User ID is required"]);
@@ -39,7 +42,7 @@ if ($method === 'GET') {
         echo json_encode(["success" => false, "error" => $e->getMessage()]);
     }
 } else if ($method === 'PATCH') {
-    $data = json_decode(file_get_contents("php://input"), true);
+    $data = ['user_id' => $me->user_id];
     if (!empty($data['user_id'])) {
         try {
             $query = "UPDATE notifications SET is_read = TRUE WHERE user_id = :uid";

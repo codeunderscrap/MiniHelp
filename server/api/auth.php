@@ -1,67 +1,70 @@
 <?php
-// api/auth.php
+// api/auth.php — POST: password login. DELETE: sign out.
 require_once '../config/cors.php';
 setup_cors();
 
 include_once '../config/db.php';
+require_once '../config/auth_middleware.php';
 
 $database = new Database();
 $db = $database->getConnection();
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-if ($method === 'POST') {
-    $data = json_decode(file_get_contents("php://input"));
-    
-    if(!empty($data->email) && !empty($data->password)) {
-        try {
-            $query = "SELECT * FROM users WHERE email = :email LIMIT 1";
-            $stmt = $db->prepare($query);
-            $stmt->bindParam(":email", $data->email);
-            $stmt->execute();
-            
-            if($stmt->rowCount() > 0) {
-                $user = $stmt->fetch();
-                if(password_verify($data->password, $user['password_hash'])) {
-                    
-                    // Remove hash from response
-                    unset($user['password_hash']);
-                    
-                    // Get department info if any
-                    if($user['department_id']) {
-                        $dQuery = "SELECT name, code FROM departments WHERE id = :did";
-                        $dStmt = $db->prepare($dQuery);
-                        $dStmt->bindParam(":did", $user['department_id']);
-                        $dStmt->execute();
-                        $user['department'] = $dStmt->fetch();
-                    }
-                    
-                    // Minimal token system (for demo purposes)
-                    $token = base64_encode(json_encode(["id" => $user['id'], "email" => $user['email'], "exp" => time() + 3600]));
-                    
-                    echo json_encode([
-                        "success" => true,
-                        "token" => $token,
-                        "user" => $user
-                    ]);
-                } else {
-                    http_response_code(401);
-                    echo json_encode(["success" => false, "error" => "Invalid credentials."]);
-                }
-            } else {
-                http_response_code(401);
-                echo json_encode(["success" => false, "error" => "Invalid credentials."]);
-            }
-        } catch(PDOException $e) {
-            http_response_code(500);
-            echo json_encode(["success" => false, "error" => $e->getMessage()]);
-        }
-    } else {
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Incomplete data."]);
-    }
-} else {
+if ($method === 'DELETE') {
+    clear_session_cookie();
+    echo json_encode(["success" => true]);
+    exit();
+}
+
+if ($method !== 'POST') {
     http_response_code(405);
     echo json_encode(["success" => false, "error" => "Method not allowed"]);
+    exit();
 }
-?>
+
+if (!local_login_enabled()) {
+    http_response_code(403);
+    echo json_encode(["success" => false, "error" => "Password sign-in is off. Sign in through MM OS."]);
+    exit();
+}
+
+$data = json_decode(file_get_contents("php://input"));
+
+if (empty($data->email) || empty($data->password)) {
+    http_response_code(400);
+    echo json_encode(["success" => false, "error" => "Incomplete data."]);
+    exit();
+}
+
+try {
+    $stmt = $db->prepare("SELECT * FROM users WHERE email = :email LIMIT 1");
+    $stmt->execute([":email" => $data->email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user || !password_verify($data->password, $user['password_hash'])) {
+        http_response_code(401);
+        echo json_encode(["success" => false, "error" => "Invalid credentials."]);
+        exit();
+    }
+
+    unset($user['password_hash']);
+
+    if ($user['department_id']) {
+        $dStmt = $db->prepare("SELECT name, code FROM departments WHERE id = :did");
+        $dStmt->execute([":did" => $user['department_id']]);
+        $user['department'] = $dStmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    $session = issue_session_token($db, (int)$user['id'], 'local');
+    set_session_cookie($session['token'], $session['exp']);
+
+    echo json_encode([
+        "success" => true,
+        "token" => $session['token'],
+        "user" => $user
+    ]);
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode(["success" => false, "error" => "Sign-in failed."]);
+}
