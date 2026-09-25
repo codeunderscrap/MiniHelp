@@ -20,7 +20,12 @@ if ($method === 'GET') {
             // The app shell reads notification sounds before sign-in; everything else
             // (SLA targets, priority rules) is for signed-in managers only.
             if (!($me && $me->is_manager()) && strpos($row['setting_key'], 'sound_') !== 0) continue;
-            $settings[$row['setting_key']] = $row['setting_value'];
+            
+            $val = json_decode($row['setting_value'], true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $val = $row['setting_value'];
+            }
+            $settings[$row['setting_key']] = $val;
         }
         echo json_encode(["success" => true, "data" => $settings]);
     } catch(PDOException $e) {
@@ -34,7 +39,8 @@ if ($method === 'GET') {
             $db->beginTransaction();
             $stmt = $db->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES (:k, :v) ON DUPLICATE KEY UPDATE setting_value = :v");
             foreach ($data as $key => $val) {
-                $stmt->execute([':k' => $key, ':v' => $val]);
+                $valToSave = is_array($val) ? json_encode($val) : (string)$val;
+                $stmt->execute([':k' => $key, ':v' => $valToSave]);
             }
             $db->commit();
             echo json_encode(["success" => true, "message" => "Settings updated"]);
