@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuthStore } from '../store';
@@ -107,16 +107,16 @@ export function CreateTicket() {
   return (
     <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="mb-8 text-center sm:text-left">
-        <h1 className="text-3xl font-bold text-white mb-2">Create New Ticket</h1>
-        <p className="text-slate-400">Describe your issue and we'll get the right team on it.</p>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Create New Ticket</h1>
+        <p className="text-[var(--text-secondary)]">Describe your issue and we'll get the right team on it.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
         
         {/* Department Selection */}
-        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-            <Briefcase className="text-emerald-500" size={20} />
+        <div className="bg-[var(--bg-secondary)] backdrop-blur-xl border border-[var(--border)] rounded-2xl p-6 shadow-xl">
+          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+            <Briefcase className="text-[var(--accent-primary)]" size={20} />
             Select Department
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -124,17 +124,17 @@ export function CreateTicket() {
               <div 
                 key={dept.id} 
                 onClick={() => setSelectedDept(dept.id)}
-                className={`relative flex items-center p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${selectedDept === dept.id ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10' : 'border-slate-800 bg-slate-800/50 hover:bg-slate-800 hover:border-slate-700'}`}
+                className={`relative flex items-center p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${selectedDept === dept.id ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 shadow-lg shadow-[var(--accent-primary)]/10' : 'border-[var(--border)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] hover:border-[var(--border)]'}`}
               >
-                <div className={`p-3 rounded-lg mr-4 ${selectedDept === dept.id ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                <div className={`p-3 rounded-lg mr-4 ${selectedDept === dept.id ? 'bg-[var(--accent-primary)] text-[var(--bg-primary)]' : 'bg-[var(--bg-quaternary)] text-[var(--text-primary)]'}`}>
                   <Briefcase size={20} />
                 </div>
                 <div>
-                  <h3 className="font-medium text-white">{dept.name}</h3>
-                  <p className="text-xs text-slate-400 line-clamp-1">{dept.description || 'General inquiries'}</p>
+                  <h3 className="font-medium text-[var(--text-primary)]">{dept.name}</h3>
+                  <p className="text-xs text-[var(--text-secondary)] line-clamp-1">{dept.description || 'General inquiries'}</p>
                 </div>
                 {selectedDept === dept.id && (
-                  <CheckCircle2 className="absolute top-3 right-3 text-emerald-500" size={18} />
+                  <CheckCircle2 className="absolute top-3 right-3 text-[var(--accent-primary)]" size={18} />
                 )}
               </div>
             ))}
@@ -142,16 +142,16 @@ export function CreateTicket() {
         </div>
 
         {selectedDept && (
-          <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
-            <h2 className="text-xl font-semibold text-white mb-4">Ticket Details</h2>
+          <div className="bg-[var(--bg-secondary)] backdrop-blur-xl border border-[var(--border)] rounded-2xl p-6 shadow-xl space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+            <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Ticket Details</h2>
             
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Issue Title <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Issue Title <span className="text-red-500">*</span></label>
               <input 
                 type="text" 
                 placeholder="Brief summary of the issue" 
                 required 
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] transition-all"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
               />
@@ -159,9 +159,9 @@ export function CreateTicket() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Priority</label>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Priority</label>
                 <select 
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all appearance-none" 
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 transition-all appearance-none" 
                   value={priority} 
                   onChange={e => setPriority(e.target.value)}
                   style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2394a3b8\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
@@ -174,9 +174,9 @@ export function CreateTicket() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Problem Type</label>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Problem Type</label>
                 <select 
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all appearance-none" 
+                  className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 transition-all appearance-none" 
                   value={category} 
                   onChange={e => setCategory(e.target.value)}
                   style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2394a3b8\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
@@ -189,38 +189,38 @@ export function CreateTicket() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Description <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Description <span className="text-red-500">*</span></label>
               <textarea 
                 rows={5} 
                 placeholder="Please provide as much detail as possible..." 
                 required 
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all resize-y"
+                className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl px-4 py-3 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 focus:border-[var(--accent-primary)] transition-all resize-y"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
               ></textarea>
             </div>
 
             {loadingFields && (
-              <div className="flex items-center text-emerald-500 text-sm gap-2">
-                <div className="w-4 h-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"></div>
+              <div className="flex items-center text-[var(--accent-primary)] text-sm gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-[var(--accent-primary)] border-t-transparent animate-spin"></div>
                 Loading department specifics...
               </div>
             )}
 
             {!loadingFields && dynamicFields.length > 0 && (
-              <div className="p-5 bg-slate-800/50 rounded-xl border border-slate-700/50 space-y-4">
-                <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+              <div className="p-5 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border)] space-y-4">
+                <h3 className="text-sm font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-2 flex items-center gap-2">
                   <AlertCircle size={16} /> Department Specific Questions
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   {dynamicFields.map((field) => (
                     <div key={field.id} className="col-span-1">
-                      <label className="block text-sm font-medium text-slate-300 mb-1">
+                      <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
                         {field.field_label} {field.is_required && <span className="text-red-500">*</span>}
                       </label>
                       {field.field_type === 'dropdown' ? (
                         <select 
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 appearance-none" 
+                          className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 appearance-none" 
                           required={field.is_required}
                           value={customValues[field.id] || ''}
                           onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
@@ -233,7 +233,7 @@ export function CreateTicket() {
                         </select>
                       ) : field.field_type === 'textarea' ? (
                         <textarea 
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-y" 
+                          className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 resize-y" 
                           rows={2}
                           required={field.is_required}
                           value={customValues[field.id] || ''}
@@ -242,7 +242,7 @@ export function CreateTicket() {
                       ) : (
                         <input 
                           type="text" 
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50" 
+                          className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50" 
                           required={field.is_required}
                           value={customValues[field.id] || ''}
                           onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
@@ -255,16 +255,16 @@ export function CreateTicket() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Attachments (Optional)</label>
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Attachments (Optional)</label>
               <div 
-                className="w-full border-2 border-dashed border-slate-600 hover:border-emerald-500 bg-slate-800/30 hover:bg-slate-800/60 transition-all rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer group"
+                className="w-full border-2 border-dashed border-[var(--border-hover)] hover:border-[var(--accent-primary)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-quaternary)] transition-all rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer group"
                 onClick={() => document.getElementById('file-upload')?.click()}
               >
-                <div className="p-4 bg-slate-800 rounded-full group-hover:scale-110 transition-transform duration-200 mb-3">
-                  <UploadCloud size={24} className="text-emerald-500" />
+                <div className="p-4 bg-[var(--bg-tertiary)] rounded-full group-hover:scale-110 transition-transform duration-200 mb-3">
+                  <UploadCloud size={24} className="text-[var(--accent-primary)]" />
                 </div>
-                <p id="file-name-display" className="text-slate-300 font-medium text-center">Click to browse or drag & drop</p>
-                <p className="text-slate-500 text-sm mt-1">Images, PDFs up to 10MB</p>
+                <p id="file-name-display" className="text-[var(--text-primary)] font-medium text-center">Click to browse or drag & drop</p>
+                <p className="text-[var(--text-tertiary)] text-sm mt-1">Images, PDFs up to 10MB</p>
                 <input 
                   type="file" 
                   id="file-upload" 
@@ -274,7 +274,7 @@ export function CreateTicket() {
                     const display = document.getElementById('file-name-display');
                     if (display && file) {
                       display.innerText = file.name;
-                      display.classList.add('text-emerald-400');
+                      display.classList.add('text-[var(--accent-primary)]');
                     }
                   }}
                 />
@@ -285,7 +285,7 @@ export function CreateTicket() {
               <button 
                 type="submit" 
                 disabled={isSubmitting}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-8 py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[150px]"
+                className="bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)] text-[var(--bg-primary)] font-medium px-8 py-3 rounded-xl transition-all shadow-lg shadow-lg active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[150px]"
               >
                 {isSubmitting ? (
                   <span className="flex items-center gap-2">
@@ -301,3 +301,5 @@ export function CreateTicket() {
     </div>
   );
 }
+
+
