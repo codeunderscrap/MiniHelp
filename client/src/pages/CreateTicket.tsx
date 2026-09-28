@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuthStore } from '../store';
@@ -83,7 +83,7 @@ export function CreateTicket() {
       let res;
       if (file) {
         const formData = new FormData();
-        formData.append('ticket', JSON.stringify(payload));
+        formData.append('data', JSON.stringify(payload));
         formData.append('attachment', file);
         res = await api.post('/tickets.php', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
