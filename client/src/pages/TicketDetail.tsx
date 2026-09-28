@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { api } from '../api';
 import { useAuthStore } from '../store';
 import { ArrowLeft, Clock, MessageSquare, Send, Paperclip, Info, ShieldAlert, CheckCircle, Tag } from 'lucide-react';
-import './TicketDetail.css';
 
 export function TicketDetail() {
   const { id } = useParams();

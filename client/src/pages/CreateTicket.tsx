@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuthStore } from '../store';
 import { Briefcase, CheckCircle2, UploadCloud, AlertCircle } from 'lucide-react';
-import './CreateTicket.css'; // Leaving this just in case, but using Tailwind mostly
 
 export function CreateTicket() {
   const user = useAuthStore(state => state.user);
