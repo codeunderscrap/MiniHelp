@@ -159,7 +159,7 @@ export function Layout() {
 
       {/* Main Content Area */}
       <div className="main-wrapper">
-        <header className="top-header glass">
+        <header className="top-header glass" style={{ position: "relative", zIndex: 50 }}>
           <div className="mobile-logo-wrapper">
             <img src="/logo.png" alt="MiniMines" className="mobile-logo" />
             <span className="mobile-brand-name">Helpdesk</span>
@@ -297,6 +297,7 @@ export function Layout() {
     </div>
   );
 }
+
 
 
 
