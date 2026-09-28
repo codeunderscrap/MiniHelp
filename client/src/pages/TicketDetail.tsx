@@ -1,11 +1,12 @@
 ﻿import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuthStore } from '../store';
-import { ArrowLeft, Clock, MessageSquare, Send, Paperclip, Info, ShieldAlert, CheckCircle, Tag } from 'lucide-react';
+import { ArrowLeft, Clock, MessageSquare, Send, Paperclip, Info, ShieldAlert, CheckCircle, Tag, Trash2 } from 'lucide-react';
 
 export function TicketDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const user = useAuthStore(state => state.user);
   const [ticket, setTicket] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -112,6 +113,20 @@ export function TicketDetail() {
       fetchTicketDetails();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+    const handleDeleteTicket = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete this ticket? This action cannot be undone.")) return;
+    try {
+      const res = await api.delete('/tickets.php?id=' + id);
+      if (res.data && res.data.success) {
+        navigate('/tickets');
+      } else {
+        alert(res.data.error || 'Failed to delete ticket');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete ticket');
     }
   };
 
@@ -243,6 +258,16 @@ export function TicketDetail() {
               </div>
             </div>
           )}
+          {user?.role === 'admin' && (
+            <div className="p-5 mt-auto">
+              <button 
+                onClick={handleDeleteTicket}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white transition-all text-sm font-medium"
+              >
+                <Trash2 size={16} /> Delete Ticket
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right Side: Chat Window */}
@@ -344,6 +369,9 @@ export function TicketDetail() {
     </div>
   );
 }
+
+
+
 
 
 
