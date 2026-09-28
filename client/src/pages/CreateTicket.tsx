@@ -182,12 +182,7 @@ export function CreateTicket() {
                 </div>
                 <div className="form-group">
                   <label>Category</label>
-                  <select className="form-input" value={category} onChange={e => setCategory(e.target.value)}>
-                    <option value="software">Software</option>
-                    <option value="hardware">Hardware</option>
-                    <option value="access">Access/Permissions</option>
-                    <option value="other">Other</option>
-                  </select>
+                  <select className="form-input" value={category} onChange={e => setCategory(e.target.value)}>{categories.length > 0 ? categories.map(cat => (<option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>)) : <option value="General">General</option>}</select>
                 </div>
               </div>
 
@@ -283,4 +278,5 @@ export function CreateTicket() {
     </div>
   );
 }
+
 

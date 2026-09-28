@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api';
 import { useAuthStore } from '../store';
@@ -27,6 +27,13 @@ export function TicketDetail() {
 
   useEffect(() => {
     fetchTicketDetails();
+    
+    // Auto-refresh chat every 5 seconds
+    const interval = setInterval(() => {
+      fetchTicketDetails();
+    }, 5000);
+    
+    return () => clearInterval(interval);
   }, [id]);
 
   const handleSendComment = async () => {
@@ -43,6 +50,13 @@ export function TicketDetail() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendComment();
     }
   };
 
@@ -149,11 +163,7 @@ export function TicketDetail() {
 
             {ticket.status !== 'closed' && (
               <div className="chat-input-area">
-                <textarea 
-                  placeholder="Type your message..." 
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                />
+                <textarea placeholder="Type your message... (Press Enter to send)" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={handleKeyDown} />
                 <button className="btn-primary" onClick={handleSendComment}>
                   <Send size={18} /> Send
                 </button>
@@ -204,3 +214,4 @@ export function TicketDetail() {
     </div>
   );
 }
+
