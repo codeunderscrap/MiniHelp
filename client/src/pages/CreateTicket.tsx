@@ -49,15 +49,53 @@ export function CreateTicket() {
             setCategory('General');
           }
         }
-              if (res.data?.success) {
+        if (res.data?.success) {
+          setDynamicFields(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic fields", err);
+      } finally {
+        setLoadingFields(false);
+      }
+    };
+    fetchFields();
+  }, [selectedDept]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDept || !title || !description || !user?.id) return;
+    
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        title,
+        description,
+        priority,
+        category,
+        department_id: selectedDept,
+        creator_id: user.id,
+        custom_values: customValues
+      };
+
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      const file = fileInput?.files?.[0];
+
+      let res;
+      if (file) {
+        const formData = new FormData();
+        formData.append('data', JSON.stringify(payload));
+        formData.append('attachment', file);
+        res = await api.post('/tickets.php', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        res = await api.post('/tickets.php', payload);
+      }
+
+      if (res.data?.success) {
         navigate('/tickets');
       } else {
-        if (typeof res.data === 'string') {
-          console.error("PHP Error:", res.data);
-          alert('Server returned invalid data. Check console for details. Data: ' + res.data.substring(0, 100));
-        } else {
-          alert('Error: ' + (res.data?.error || 'Unknown error'));
-        }
+        if (typeof res.data === 'string') { alert('Server Error: ' + res.data.substring(0, 100)); } else { alert('Error: ' + (res.data?.error || 'Unknown error')); }
       }
     } catch (err: any) {
       alert('Error creating ticket: ' + (err.response?.data?.error || err.message));
@@ -263,6 +301,7 @@ export function CreateTicket() {
     </div>
   );
 }
+
 
 
 
