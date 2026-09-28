@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // api/comments.php
 require_once '../config/cors.php';
 setup_cors();
@@ -37,7 +37,7 @@ if ($method === 'GET') {
     }
 } 
 else if ($method === 'POST') {
-    $isMultipart = !empty($_POST['ticket_id']);
+    $isMultipart = isset($_POST['ticket_id']) && !empty($_POST['ticket_id']);
     if ($isMultipart) {
         $data = (object)[
             'ticket_id' => $_POST['ticket_id'],
@@ -158,4 +158,5 @@ else {
     echo json_encode(["success" => false, "error" => "Method not allowed"]);
 }
 ?>
+
 

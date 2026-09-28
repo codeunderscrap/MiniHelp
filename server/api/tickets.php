@@ -133,7 +133,7 @@ if ($method === 'GET') {
 } 
 else if ($method === 'POST') {
     // Check if multipart form data (with file) or raw JSON
-    $isMultipart = !empty($_POST['data']);
+    $isMultipart = isset($_POST['data']) && !empty($_POST['data']);
     $data = $isMultipart ? json_decode($_POST['data'], true) : json_decode(file_get_contents("php://input"), true);
     if (is_array($data)) {
         // Tickets are always raised as the signed-in user.
@@ -386,3 +386,5 @@ else if ($method === 'DELETE') {
     }
 }
 ?>
+
+
