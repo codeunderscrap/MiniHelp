@@ -1,29 +1,26 @@
-﻿import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuthStore } from '../store';
-import { UploadCloud, CheckCircle2, Briefcase } from 'lucide-react';
-import { useEffect } from 'react';
-import './CreateTicket.css';
-
-
+import { Briefcase, CheckCircle2, UploadCloud, AlertCircle } from 'lucide-react';
+import './CreateTicket.css'; // Leaving this just in case, but using Tailwind mostly
 
 export function CreateTicket() {
   const user = useAuthStore(state => state.user);
-  const [step, setStep] = useState(1);
-  const [selectedDept, setSelectedDept] = useState('');
   const [departments, setDepartments] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   
   // Form State
+  const [selectedDept, setSelectedDept] = useState('');
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState('low');
-  const [category, setCategory] = useState('software');
+  const [category, setCategory] = useState('General');
   const [description, setDescription] = useState('');
   const [dynamicFields, setDynamicFields] = useState<any[]>([]);
   const [customValues, setCustomValues] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingFields, setLoadingFields] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,28 +29,38 @@ export function CreateTicket() {
     });
   }, []);
 
-
-  const handleNextStep = async () => {
-    if (!selectedDept) return;
-    try {
-      const res = await api.get(`/fields.php?department_id=${selectedDept}`);
-      const catRes = await api.get(`/categories.php?department_id=${selectedDept}`);
-      if (catRes.data?.success) {
-        setCategories(catRes.data.data);
-        if (catRes.data.data.length > 0) {
-          setCategory(catRes.data.data[0].name);
-        } else {
-          setCategory('General');
-        }
-      }
-      if (res.data && res.data.success) {
-        setDynamicFields(res.data.data);
-      }
-    } catch (err) {
-      console.error("Failed to load dynamic fields", err);
+  // Fetch dynamic fields when department changes
+  useEffect(() => {
+    if (!selectedDept) {
+      setDynamicFields([]);
+      setCategories([]);
+      return;
     }
-    setStep(2);
-  };
+    const fetchFields = async () => {
+      setLoadingFields(true);
+      try {
+        const res = await api.get(`/fields.php?department_id=${selectedDept}`);
+        const catRes = await api.get(`/categories.php?department_id=${selectedDept}`);
+        
+        if (catRes.data?.success) {
+          setCategories(catRes.data.data);
+          if (catRes.data.data.length > 0) {
+            setCategory(catRes.data.data[0].name);
+          } else {
+            setCategory('General');
+          }
+        }
+        if (res.data?.success) {
+          setDynamicFields(res.data.data);
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic fields", err);
+      } finally {
+        setLoadingFields(false);
+      }
+    };
+    fetchFields();
+  }, [selectedDept]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,21 +84,17 @@ export function CreateTicket() {
       let res;
       if (file) {
         const formData = new FormData();
-        formData.append('data', JSON.stringify(payload));
+        formData.append('ticket', JSON.stringify(payload));
         formData.append('attachment', file);
-        // By setting Content-Type to undefined, Axios will automatically figure out it's FormData 
-        // and set the correct multipart boundary. We must delete the default application/json.
         res = await api.post('/tickets.php', formData, {
-          headers: { 'Content-Type': undefined }
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
       } else {
         res = await api.post('/tickets.php', payload);
       }
 
-      if (res.data && res.data.success) {
-        alert('Ticket created successfully!');
-        window.dispatchEvent(new CustomEvent('refresh-notifications'));
-          navigate('/tickets');
+      if (res.data?.success) {
+        navigate('/tickets');
       } else {
         alert('Error: ' + res.data.error);
       }
@@ -103,180 +106,199 @@ export function CreateTicket() {
   };
 
   return (
-    <div className="create-ticket">
-      <div className="wizard-header">
-        <h1>Create New Ticket</h1>
-        <div className="steps-indicator">
-          <div className={`step ${step >= 1 ? 'active' : ''}`}>
-            <div className="step-circle">1</div>
-            <span>Department</span>
-          </div>
-          <div className={`step-line ${step >= 2 ? 'active' : ''}`}></div>
-          <div className={`step ${step >= 2 ? 'active' : ''}`}>
-            <div className="step-circle">2</div>
-            <span>Details</span>
-          </div>
-        </div>
+    <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="mb-8 text-center sm:text-left">
+        <h1 className="text-3xl font-bold text-white mb-2">Create New Ticket</h1>
+        <p className="text-slate-400">Describe your issue and we'll get the right team on it.</p>
       </div>
 
-      <div className="wizard-content glass">
-        {step === 1 && (
-          <div className="step-1">
-            <h2>Select Department</h2>
-            <p>Which team can help you with your issue?</p>
-            
-            <div className="dept-grid">
-                {departments.map(dept => (
-                  <div 
-                    key={dept.id} 
-                    className={`dept-card ${selectedDept === dept.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedDept(dept.id)}
-                  >
-                    <div className="dept-icon"><Briefcase size={20} strokeWidth={1.5} /></div>
-                    <h3>{dept.name}</h3>
-                    <p>{dept.description || 'General inquiries'}</p>
-                    {selectedDept === dept.id && <CheckCircle2 size={20} strokeWidth={1.5} className="check-icon" />}
-                  </div>
-                ))}
-              </div>
-
-            <div className="wizard-actions">
-              <button 
-                className="btn-primary" 
-                disabled={!selectedDept}
-                onClick={handleNextStep}
+      <form onSubmit={handleSubmit} className="space-y-8">
+        
+        {/* Department Selection */}
+        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl">
+          <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <Briefcase className="text-emerald-500" size={20} />
+            Select Department
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {departments.map(dept => (
+              <div 
+                key={dept.id} 
+                onClick={() => setSelectedDept(dept.id)}
+                className={`relative flex items-center p-4 rounded-xl cursor-pointer transition-all duration-200 border-2 ${selectedDept === dept.id ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10' : 'border-slate-800 bg-slate-800/50 hover:bg-slate-800 hover:border-slate-700'}`}
               >
-                Next Step
+                <div className={`p-3 rounded-lg mr-4 ${selectedDept === dept.id ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                  <Briefcase size={20} />
+                </div>
+                <div>
+                  <h3 className="font-medium text-white">{dept.name}</h3>
+                  <p className="text-xs text-slate-400 line-clamp-1">{dept.description || 'General inquiries'}</p>
+                </div>
+                {selectedDept === dept.id && (
+                  <CheckCircle2 className="absolute top-3 right-3 text-emerald-500" size={18} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {selectedDept && (
+          <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
+            <h2 className="text-xl font-semibold text-white mb-4">Ticket Details</h2>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Issue Title <span className="text-red-500">*</span></label>
+              <input 
+                type="text" 
+                placeholder="Brief summary of the issue" 
+                required 
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Priority</label>
+                <select 
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all appearance-none" 
+                  value={priority} 
+                  onChange={e => setPriority(e.target.value)}
+                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2394a3b8\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
+                >
+                  <option value="low">Low (Routine)</option>
+                  <option value="medium">Medium (Impedes work)</option>
+                  <option value="high">High (Urgent)</option>
+                  <option value="critical">Critical (Blocker)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Problem Type</label>
+                <select 
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all appearance-none" 
+                  value={category} 
+                  onChange={e => setCategory(e.target.value)}
+                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2394a3b8\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em' }}
+                >
+                  {categories.length > 0 ? categories.map(cat => (
+                    <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>
+                  )) : <option value="General">General</option>}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Description <span className="text-red-500">*</span></label>
+              <textarea 
+                rows={5} 
+                placeholder="Please provide as much detail as possible..." 
+                required 
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all resize-y"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+              ></textarea>
+            </div>
+
+            {loadingFields && (
+              <div className="flex items-center text-emerald-500 text-sm gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin"></div>
+                Loading department specifics...
+              </div>
+            )}
+
+            {!loadingFields && dynamicFields.length > 0 && (
+              <div className="p-5 bg-slate-800/50 rounded-xl border border-slate-700/50 space-y-4">
+                <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <AlertCircle size={16} /> Department Specific Questions
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {dynamicFields.map((field) => (
+                    <div key={field.id} className="col-span-1">
+                      <label className="block text-sm font-medium text-slate-300 mb-1">
+                        {field.field_label} {field.is_required && <span className="text-red-500">*</span>}
+                      </label>
+                      {field.field_type === 'dropdown' ? (
+                        <select 
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 appearance-none" 
+                          required={field.is_required}
+                          value={customValues[field.id] || ''}
+                          onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
+                          style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2394a3b8\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.2em 1.2em' }}
+                        >
+                          <option value="">Select...</option>
+                          {field.options && JSON.parse(field.options).map((opt: string) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : field.field_type === 'textarea' ? (
+                        <textarea 
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-y" 
+                          rows={2}
+                          required={field.is_required}
+                          value={customValues[field.id] || ''}
+                          onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
+                        ></textarea>
+                      ) : (
+                        <input 
+                          type="text" 
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50" 
+                          required={field.is_required}
+                          value={customValues[field.id] || ''}
+                          onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Attachments (Optional)</label>
+              <div 
+                className="w-full border-2 border-dashed border-slate-600 hover:border-emerald-500 bg-slate-800/30 hover:bg-slate-800/60 transition-all rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer group"
+                onClick={() => document.getElementById('file-upload')?.click()}
+              >
+                <div className="p-4 bg-slate-800 rounded-full group-hover:scale-110 transition-transform duration-200 mb-3">
+                  <UploadCloud size={24} className="text-emerald-500" />
+                </div>
+                <p id="file-name-display" className="text-slate-300 font-medium text-center">Click to browse or drag & drop</p>
+                <p className="text-slate-500 text-sm mt-1">Images, PDFs up to 10MB</p>
+                <input 
+                  type="file" 
+                  id="file-upload" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    const display = document.getElementById('file-name-display');
+                    if (display && file) {
+                      display.innerText = file.name;
+                      display.classList.add('text-emerald-400');
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="pt-4 flex justify-end">
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-8 py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center min-w-[150px]"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+                    Submitting...
+                  </span>
+                ) : 'Submit Ticket'}
               </button>
             </div>
           </div>
         )}
-
-        {step === 2 && (
-          <div className="step-2">
-            <h2>Ticket Details</h2>
-            <p>Provide as much information as possible.</p>
-
-            <form className="ticket-form" onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Issue Title *</label>
-                <input 
-                  type="text" 
-                  placeholder="Brief summary of the issue" 
-                  required 
-                  className="form-input"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                />
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Priority</label>
-                  <select className="form-input" value={priority} onChange={e => setPriority(e.target.value)}>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Category</label>
-                  <select className="form-input" value={category} onChange={e => setCategory(e.target.value)}>{categories.length > 0 ? categories.map(cat => (<option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>)) : <option value="General">General</option>}</select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Description *</label>
-                <textarea 
-                  rows={6} 
-                  placeholder="Detailed explanation of the issue..." 
-                  required 
-                  className="form-input"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                ></textarea>
-              </div>
-
-              {dynamicFields.length > 0 && (
-                <div className="dynamic-fields-section" style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <h3 style={{ margin: '0 0 16px 0', fontSize: '1rem' }}>Department Specific Details</h3>
-                  <div className="form-row" style={{ flexWrap: 'wrap' }}>
-                    {dynamicFields.map((field) => (
-                      <div className="form-group" key={field.id} style={{ minWidth: '45%' }}>
-                        <label>{field.field_label} {field.is_required ? '*' : ''}</label>
-                        {field.field_type === 'dropdown' ? (
-                          <select 
-                            className="form-input" 
-                            required={field.is_required}
-                            value={customValues[field.id] || ''}
-                            onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
-                          >
-                            <option value="">Select...</option>
-                            {field.options && JSON.parse(field.options).map((opt: string) => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
-                        ) : field.field_type === 'textarea' ? (
-                          <textarea 
-                            className="form-input" 
-                            rows={3}
-                            required={field.is_required}
-                            value={customValues[field.id] || ''}
-                            onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
-                          ></textarea>
-                        ) : (
-                          <input 
-                            type="text" 
-                            className="form-input" 
-                            required={field.is_required}
-                            value={customValues[field.id] || ''}
-                            onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="form-group">
-                <label>Attachments</label>
-                <div 
-                  className="file-upload-zone" 
-                  onClick={() => document.getElementById('file-upload')?.click()}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <UploadCloud size={20} strokeWidth={1.5} />
-                  <p id="file-name-display">Drag & drop files here, or click to select</p>
-                  <small>Max file size: 10MB</small>
-                  <input 
-                    type="file" 
-                    id="file-upload" 
-                    style={{ display: 'none' }} 
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      const display = document.getElementById('file-name-display');
-                      if (display && file) {
-                        display.innerText = file.name;
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="wizard-actions">
-                <button type="button" className="btn-secondary" onClick={() => setStep(1)}>Back</button>
-                <button type="submit" className="btn-primary" disabled={isSubmitting}>
-                  {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-      </div>
+      </form>
     </div>
   );
 }
-
-
