@@ -1,4 +1,6 @@
 ﻿<?php
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
 // api/tickets.php
 require_once '../config/cors.php';
 setup_cors();
@@ -386,5 +388,6 @@ else if ($method === 'DELETE') {
     }
 }
 ?>
+
 
 
