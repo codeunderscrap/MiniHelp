@@ -10,6 +10,8 @@ export function TicketDetail() {
   const [ticket, setTicket] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const fetchTicketDetails = async () => {
@@ -37,21 +39,64 @@ export function TicketDetail() {
     }
   }, [ticket?.comments]); // Scroll on new comment
 
-  const handleSendComment = async () => {
-    if (!newComment.trim() || !user) return;
+    const handleSendComment = async () => {
+    if ((!newComment.trim() && !attachment) || !user || isSubmitting) return;
+    setIsSubmitting(true);
     try {
-      const res = await api.post('/comments.php', {
-        ticket_id: id,
-        user_id: user.id,
-        content: newComment
-      });
+      let res;
+      if (attachment) {
+        const formData = new FormData();
+        formData.append('ticket_id', id || '');
+        formData.append('content', newComment);
+        formData.append('attachment', attachment);
+        res = await api.post('/comments.php', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        res = await api.post('/comments.php', {
+          ticket_id: id,
+          user_id: user.id,
+          content: newComment
+        });
+      }
+      
       if (res.data && res.data.success) {
         setNewComment('');
+        setAttachment(null);
         fetchTicketDetails();
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const renderCommentContent = (text: string) => {
+    const fileRegex = /\[FILE:\/\/(.*?)\|(.*?)\]/g;
+    const match = fileRegex.exec(text);
+    if (match) {
+      const url = match[1];
+      const name = match[2];
+      const cleanText = text.replace(fileRegex, '').trim();
+      const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+      
+      return (
+        <div className="flex flex-col gap-2">
+          {cleanText && <span>{cleanText}</span>}
+          {isImage ? (
+            <a href={url} target="_blank" rel="noopener noreferrer" className="block mt-1">
+              <img src={url} alt={name} className="max-w-full h-auto max-h-48 rounded-md border border-white/10" />
+            </a>
+          ) : (
+            <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-black/10 rounded-md text-sm underline mt-1">
+              <Paperclip size={14} /> {name}
+            </a>
+          )}
+        </div>
+      );
+    }
+    return <span>{text}</span>;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -225,7 +270,7 @@ export function TicketDetail() {
                           ? 'bg-[var(--accent-primary)] text-[var(--bg-primary)] rounded-l-xl rounded-tr-xl rounded-br-sm' 
                           : 'bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-r-xl rounded-tl-xl rounded-bl-sm'}
                       `}>
-                        {comment.content}
+                        {renderCommentContent(comment.content)}
                         <span className="float-right mt-2 ml-4 text-[10px] text-[var(--text-primary)]/50 flex items-center">
                           {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {isMe && <CheckCircle size={12} className="ml-1 text-black" />}
@@ -246,30 +291,46 @@ export function TicketDetail() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Bottom Chat Input */}
-          {ticket.status !== 'closed' ? (
-            <div className="bg-[var(--bg-secondary)] p-3 sm:px-4 flex items-end gap-2 shrink-0 z-10 w-full">
-              <div className="flex-1 bg-[var(--bg-tertiary)] rounded-xl flex items-end">
-                <textarea 
-                  className="w-full bg-transparent text-[var(--text-primary)] px-4 py-3 max-h-[120px] min-h-[44px] focus:outline-none resize-none hide-scrollbar placeholder:text-[var(--text-secondary)]"
-                  placeholder="Type a message (Press Enter)" 
-                  value={newComment}
-                  onChange={(e) => {
-                    setNewComment(e.target.value);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = (e.target.scrollHeight) + 'px';
-                  }}
-                  onKeyDown={handleKeyDown}
-                  rows={1}
-                />
+                      {/* Bottom Chat Input */}
+            {ticket.status !== 'closed' ? (
+              <div className="bg-[var(--bg-secondary)] p-3 sm:px-4 flex items-end gap-2 shrink-0 z-10 w-full relative">
+                
+                {attachment && (
+                  <div className="absolute bottom-[100%] left-4 bg-[var(--bg-tertiary)] border border-[var(--border)] p-2 rounded-t-lg text-sm flex items-center gap-2 mb-1">
+                    <Paperclip size={14} className="text-[var(--accent-primary)]" />
+                    <span className="truncate max-w-[200px] text-[var(--text-primary)]">{attachment.name}</span>
+                    <button onClick={() => setAttachment(null)} className="text-red-400 hover:text-red-500 ml-2">×</button>
+                  </div>
+                )}
+
+                <label className="p-3 cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0">
+                  <Paperclip size={20} />
+                  <input type="file" className="hidden" onChange={(e) => { if(e.target.files && e.target.files[0]) setAttachment(e.target.files[0]); e.target.value = ''; }} />
+                </label>
+
+                <div className="flex-1 bg-[var(--bg-tertiary)] rounded-xl flex items-end">
+                  <textarea 
+                    className="w-full bg-transparent text-[var(--text-primary)] px-4 py-3 max-h-[120px] min-h-[44px] focus:outline-none resize-none hide-scrollbar placeholder:text-[var(--text-secondary)]"
+                    placeholder="Type a message (Press Enter)" 
+                    value={newComment}
+                    onChange={(e) => {
+                      setNewComment(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = (e.target.scrollHeight) + 'px';
+                    }}
+                    onKeyDown={handleKeyDown}
+                    rows={1}
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <button 
+  className={`p-3 rounded-full flex items-center justify-center shrink-0 transition-all ${(newComment.trim() || attachment) && !isSubmitting ? 'bg-[#00a884] text-[var(--bg-primary)] cursor-pointer' : 'bg-transparent text-[var(--text-secondary)] pointer-events-none'}`}
+  onClick={handleSendComment}
+  disabled={isSubmitting}
+>
+  {isSubmitting ? <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin"></div> : <Send size={20} className={(newComment.trim() || attachment) ? 'ml-1' : ''} />}
+</button>
               </div>
-              <button 
-                className={`p-3 rounded-full flex items-center justify-center shrink-0 transition-all ${newComment.trim() ? 'bg-[#00a884] text-[var(--text-primary)]' : 'bg-transparent text-[var(--text-secondary)] pointer-events-none'}`}
-                onClick={handleSendComment}
-              >
-                <Send size={20} className={newComment.trim() ? 'ml-1' : ''} />
-              </button>
-            </div>
           ) : (
             <div className="bg-[var(--bg-secondary)] p-4 text-center border-t border-[var(--border)]">
               <p className="text-[var(--text-secondary)] text-sm flex items-center justify-center gap-2">
@@ -283,6 +344,11 @@ export function TicketDetail() {
     </div>
   );
 }
+
+
+
+
+
 
 
 
