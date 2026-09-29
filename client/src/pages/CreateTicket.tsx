@@ -216,7 +216,7 @@ export function CreateTicket() {
                   {dynamicFields.map((field) => (
                     <div key={field.id} className="col-span-1">
                       <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                        {field.field_label} {field.is_required && <span className="text-red-500">*</span>}
+                        {field.field_label} {Boolean(field.is_required) && <span className="text-red-500">*</span>}
                       </label>
                       {field.field_type === 'dropdown' ? (
                         <select 
@@ -301,6 +301,7 @@ export function CreateTicket() {
     </div>
   );
 }
+
 
 
 

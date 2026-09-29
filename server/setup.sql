@@ -1,4 +1,4 @@
--- Create database if not exists
+﻿-- Create database if not exists
 CREATE DATABASE IF NOT EXISTS minimines_helpdesk;
 USE minimines_helpdesk;
 
@@ -149,9 +149,7 @@ ON DUPLICATE KEY UPDATE name=VALUES(name);
 
 -- Seed Dynamic Form Fields for IT
 INSERT IGNORE INTO form_fields (id, department_id, field_label, field_type, options, is_required) VALUES
-(1, 1, 'Device Type', 'dropdown', '["Laptop", "Desktop", "Mobile", "Printer", "Other"]', TRUE),
-(2, 1, 'Operating System', 'dropdown', '["Windows", "macOS", "Linux", "iOS", "Android"]', FALSE),
-(3, 1, 'Error Message', 'textarea', NULL, FALSE);
+(1, 1, 'Device Type', 'dropdown', '["Laptop", "Desktop", "Mobile", "Printer", "Other"]', TRUE);
 
 -- Seed Dynamic Form Fields for HR
 INSERT IGNORE INTO form_fields (id, department_id, field_label, field_type, options, is_required) VALUES
@@ -168,3 +166,5 @@ INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES
 -- Insert default admin user (password is 'password123')
 INSERT IGNORE INTO users (name, email, password_hash, role, department_id) VALUES 
 ('Admin User', 'admin@minimines.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 1);
+
+
