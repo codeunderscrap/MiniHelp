@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // api/comments.php
 require_once '../config/cors.php';
 setup_cors();
@@ -137,6 +137,14 @@ else if ($method === 'POST') {
                     ]));
                 } catch (\Throwable $e) {
                     error_log("Push Notification Error (Comments): " . $e->getMessage());
+                }
+
+                // --- EMAIL NOTIFICATION (best effort; queued and sent after the response) ---
+                try {
+                    require_once '../config/notify_email.php';
+                    notify_comment_added($db, (int)$ticket_id, (int)$data->user_id, (string)$finalContent);
+                } catch (\Throwable $e) {
+                    error_log("Email Notification Error (Comments): " . $e->getMessage());
                 }
 
                 echo json_encode(["success" => true, "message" => "Comment added"]);

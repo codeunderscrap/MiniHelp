@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS departments (
     name VARCHAR(100) NOT NULL,
     code VARCHAR(20) NOT NULL UNIQUE,
     description TEXT,
+    notification_emails TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -129,6 +130,19 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
+);
+
+-- Email delivery log (written by config/mailer.php)
+CREATE TABLE IF NOT EXISTS email_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NULL,
+    recipient VARCHAR(255) NOT NULL,
+    event VARCHAR(40) NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    error TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email_log_ticket (ticket_id),
+    INDEX idx_email_log_created (created_at)
 );
 
 -- System Settings (Admin configured sounds, etc.)
