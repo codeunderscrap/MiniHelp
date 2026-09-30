@@ -84,7 +84,7 @@ function form_field_accepted_values($raw): array {
  *   show_if_field_id is NULL, OR
  *   (its parent is visible AND the parent's answer is one of the accepted values: show_if_value
  *    split on '|', trimmed, case-sensitive exact match).
- * A missing answer counts as ''. Cycles or a missing parent make the field hidden.
+ * The answer is trimmed; a missing answer counts as ''. Cycles or a missing parent make the field hidden.
  *
  * @param array $fields  rows with at least id, show_if_field_id, show_if_value
  * @param array $values  answers keyed by field id (string|int|null)
@@ -108,7 +108,7 @@ function form_field_visibility(array $fields, array $values): array {
         $path[$id] = true;
         if (!$resolve($parentId, $path)) return $memo[$id] = false;
         $answer = $values[$parentId] ?? $values[(string)$parentId] ?? '';
-        $answer = is_scalar($answer) ? (string)$answer : '';
+        $answer = is_scalar($answer) ? trim((string)$answer) : '';
         return $memo[$id] = in_array($answer, form_field_accepted_values($f['show_if_value'] ?? null), true);
     };
 

@@ -91,10 +91,15 @@ CREATE TABLE IF NOT EXISTS form_fields (
     id INT AUTO_INCREMENT PRIMARY KEY,
     department_id INT NOT NULL,
     field_label VARCHAR(255) NOT NULL,
-    field_type ENUM('text', 'textarea', 'dropdown') DEFAULT 'text',
+    field_type VARCHAR(20) NOT NULL DEFAULT 'text', -- text | textarea | dropdown | date | number
     options JSON NULL,
     is_required BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+    help_text TEXT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    show_if_field_id INT NULL,
+    show_if_value VARCHAR(500) NULL, -- accepted parent answers separated by '|'
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+    CONSTRAINT fk_form_fields_show_if FOREIGN KEY (show_if_field_id) REFERENCES form_fields(id) ON DELETE SET NULL
 );
 
 -- Ticket Custom Values (Answers to dynamic questions)
