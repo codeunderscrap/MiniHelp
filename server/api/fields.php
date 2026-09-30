@@ -129,7 +129,9 @@ function build_field(PDO $db, object $data, array $base, ?int $selfId): array {
     return $f;
 }
 
-if (!ensure_form_fields_schema($db)) {
+$schemaOk = ensure_form_fields_schema($db);
+// Reads keep working (legacy ordering) if the migration could not run; writes need the new columns.
+if (!$schemaOk && $method !== 'GET') {
     fields_fail(500, "Could not migrate the form_fields table (see server log)");
 }
 
@@ -137,7 +139,7 @@ if ($method === 'GET') {
     $dept_id = isset($_GET['department_id']) ? $_GET['department_id'] : null;
     if ($dept_id) {
         try {
-            $stmt = $db->prepare("SELECT * FROM form_fields WHERE department_id = :did ORDER BY sort_order, id");
+            $stmt = $db->prepare("SELECT * FROM form_fields WHERE department_id = :did ORDER BY " . ($schemaOk ? "sort_order, id" : "id"));
             $stmt->bindParam(":did", $dept_id);
             $stmt->execute();
             echo json_encode(["success" => true, "data" => array_map('shape_field', $stmt->fetchAll(PDO::FETCH_ASSOC))]);

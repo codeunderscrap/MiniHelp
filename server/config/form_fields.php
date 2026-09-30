@@ -35,6 +35,7 @@ function ensure_form_fields_schema(PDO $db): bool {
 
         // field_type: ENUM('text','textarea','dropdown') -> VARCHAR(20), keeping existing values.
         if (($cols['field_type'] ?? '') === 'enum') {
+            $run("UPDATE form_fields SET field_type = 'text' WHERE field_type IS NULL");
             $run("ALTER TABLE form_fields MODIFY COLUMN field_type VARCHAR(20) NOT NULL DEFAULT 'text'");
         }
         if (!isset($cols['help_text']))        $run("ALTER TABLE form_fields ADD COLUMN help_text TEXT NULL");

@@ -146,6 +146,9 @@ else if ($method === 'POST') {
 
         if(!empty($data['title']) && !empty($data['description']) && !empty($data['department_id']) && !empty($data['creator_id'])) {
         try {
+            // Migrate form_fields first: DDL would implicitly commit an open transaction.
+            require_once '../config/form_fields.php';
+            ensure_form_fields_schema($db);
             $db->beginTransaction();
 
             // 0. Validate Creator Exists (prevent foreign key constraint failure on wiped DB)
@@ -162,7 +165,6 @@ else if ($method === 'POST') {
 
             // CUSTOM QUESTIONS: apply the same visibility rule as the client. Hidden questions are
             // never required and their answers are dropped; visible required ones must be answered.
-            require_once '../config/form_fields.php';
             $customToStore = [];
             $submittedCustom = (!empty($data['custom_values']) && is_array($data['custom_values'])) ? $data['custom_values'] : [];
             $cfOk = ensure_form_fields_schema($db);
