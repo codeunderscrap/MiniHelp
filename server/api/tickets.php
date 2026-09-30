@@ -46,10 +46,12 @@ if ($method === 'GET') {
             
             if ($ticket) {
                 // Get dynamic custom values
+                require_once '../config/form_fields.php';
+                $fOrder = ensure_form_fields_schema($db) ? " ORDER BY ff.sort_order, ff.id" : "";
                 $fQuery = "SELECT tcv.field_value, ff.field_label, ff.field_type 
                            FROM ticket_custom_values tcv 
                            JOIN form_fields ff ON tcv.field_id = ff.id 
-                           WHERE tcv.ticket_id = :tid";
+                           WHERE tcv.ticket_id = :tid" . $fOrder;
                 $fStmt = $db->prepare($fQuery);
                 $fStmt->bindParam(":tid", $id);
                 $fStmt->execute();
@@ -144,6 +146,9 @@ else if ($method === 'POST') {
 
         if(!empty($data['title']) && !empty($data['description']) && !empty($data['department_id']) && !empty($data['creator_id'])) {
         try {
+            // Migrate form_fields first: DDL would implicitly commit an open transaction.
+            require_once '../config/form_fields.php';
+            ensure_form_fields_schema($db);
             $db->beginTransaction();
 
             // 0. Validate Creator Exists (prevent foreign key constraint failure on wiped DB)
@@ -155,6 +160,39 @@ else if ($method === 'POST') {
                 $db->rollBack();
                 http_response_code(401);
                 echo json_encode(["success" => false, "error" => "Session expired or user deleted. Please log out and log in again."]);
+                exit();
+            }
+
+            // CUSTOM QUESTIONS: apply the same visibility rule as the client. Hidden questions are
+            // never required and their answers are dropped; visible required ones must be answered.
+            $customToStore = [];
+            $submittedCustom = (!empty($data['custom_values']) && is_array($data['custom_values'])) ? $data['custom_values'] : [];
+            $cfOk = ensure_form_fields_schema($db);
+            $cfStmt = $db->prepare("SELECT * FROM form_fields WHERE department_id = :did ORDER BY " . ($cfOk ? "sort_order, id" : "id"));
+            $cfStmt->execute([":did" => $data['department_id']]);
+            $deptFields = $cfStmt->fetchAll(PDO::FETCH_ASSOC);
+            $answers = [];
+            foreach ($submittedCustom as $fid => $val) {
+                $answers[(int)$fid] = is_scalar($val) ? trim((string)$val) : '';
+            }
+            $visible = $cfOk ? form_field_visibility($deptFields, $answers) : [];
+            $cfError = null;
+            foreach ($deptFields as $cf) {
+                $fid = (int)$cf['id'];
+                if ($cfOk && empty($visible[$fid])) continue; // hidden: not required, not stored
+                $val = $answers[$fid] ?? '';
+                if ($val === '') {
+                    if (!empty($cf['is_required'])) { $cfError = "Please answer: " . $cf['field_label']; break; }
+                    continue;
+                }
+                if ($cf['field_type'] === 'date' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $val)) { $cfError = "Invalid date for: " . $cf['field_label']; break; }
+                if ($cf['field_type'] === 'number' && !is_numeric($val)) { $cfError = "Invalid number for: " . $cf['field_label']; break; }
+                $customToStore[$fid] = $val;
+            }
+            if ($cfError !== null) {
+                $db->rollBack();
+                http_response_code(400);
+                echo json_encode(["success" => false, "error" => $cfError]);
                 exit();
             }
 
@@ -207,10 +245,10 @@ else if ($method === 'POST') {
             $last_id = $db->lastInsertId();
             
             // Insert Custom Values
-            if (!empty($data['custom_values']) && is_array($data['custom_values'])) {
+            if (!empty($customToStore)) {
                 $cvQuery = "INSERT INTO ticket_custom_values (ticket_id, field_id, field_value) VALUES (:tid, :fid, :val)";
                 $cvStmt = $db->prepare($cvQuery);
-                foreach($data['custom_values'] as $field_id => $val) {
+                foreach($customToStore as $field_id => $val) {
                     $cvStmt->execute([":tid" => $last_id, ":fid" => $field_id, ":val" => $val]);
                 }
             }

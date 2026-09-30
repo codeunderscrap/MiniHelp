@@ -220,7 +220,7 @@ export function TicketDetail() {
                   {ticket.custom_fields.map((cf: any, idx: number) => (
                     <div key={idx} className="flex flex-col">
                       <span className="text-xs text-[var(--text-secondary)]">{cf.field_label}</span>
-                      <span className="text-sm text-[var(--text-primary)] font-medium">{cf.field_value}</span>
+                      <span className="text-sm text-[var(--text-primary)] font-medium whitespace-pre-line">{cf.field_value}</span>
                     </div>
                   ))}
                 </div>

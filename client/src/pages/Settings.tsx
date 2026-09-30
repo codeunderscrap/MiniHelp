@@ -86,9 +86,33 @@ export function Settings() {
   const [selectedDeptForFields, setSelectedDeptForFields] = useState<string>('');
   const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
-  const [fieldForm, setFieldForm] = useState({
-    field_label: '', field_type: 'text', is_required: 0, options: ''
-  });
+  const emptyFieldForm = {
+    field_label: '', field_type: 'text', is_required: 0, options: '',
+    help_text: '', sort_order: '', show_if_field_id: '', show_if_value: ''
+  };
+  const [fieldForm, setFieldForm] = useState(emptyFieldForm);
+
+  const parseFieldOptions = (f: any): string[] => {
+    try { const o = f && f.options ? JSON.parse(f.options) : []; return Array.isArray(o) ? o : []; } catch { return []; }
+  };
+  const fieldById = (id: any) => fields.find(x => String(x.id) === String(id));
+  const conditionSummary = (f: any) => {
+    if (f.show_if_field_id == null) return '-';
+    const parent = fieldById(f.show_if_field_id);
+    const vals = String(f.show_if_value || '').split('|').map(v => v.trim()).filter(Boolean);
+    return 'Shown when "' + (parent ? parent.field_label : '(deleted question)') + '" = ' + vals.join(' or ');
+  };
+  const moveField = async (index: number, dir: -1 | 1) => {
+    const target = index + dir;
+    if (target < 0 || target >= fields.length) return;
+    const ids = fields.map(x => x.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    try {
+      const res = await api.put('/fields.php', { reorder: ids });
+      if (!res.data?.success) alert(res.data?.error || 'Failed');
+    } catch (err) {}
+    if (selectedDeptForFields) fetchFields(selectedDeptForFields);
+  };
 
   const fetchFields = async (deptId: string) => {
     try {
@@ -123,18 +147,26 @@ export function Settings() {
       setFieldForm({
         field_label: f.field_label,
         field_type: f.field_type,
-        is_required: f.is_required,
-        options: f.options ? JSON.parse(f.options).join(', ') : ''
+        is_required: f.is_required ? 1 : 0,
+        options: parseFieldOptions(f).join(', '),
+        help_text: f.help_text || '',
+        sort_order: f.sort_order != null ? String(f.sort_order) : '',
+        show_if_field_id: f.show_if_field_id != null ? String(f.show_if_field_id) : '',
+        show_if_value: f.show_if_value || ''
       });
     } else {
       setEditingFieldId(null);
-      setFieldForm({ field_label: '', field_type: 'text', is_required: 0, options: '' });
+      setFieldForm({ ...emptyFieldForm, sort_order: String(fields.length > 0 ? Math.max(...fields.map(x => Number(x.sort_order) || 0)) + 1 : 1) });
     }
     setIsFieldModalOpen(true);
   };
 
   const handleDeleteField = async (id: string) => {
-    if (!window.confirm('Delete this field?')) return;
+    const dependents = fields.filter(x => String(x.show_if_field_id) === String(id));
+    const warn = dependents.length > 0
+      ? '\n\n' + dependents.length + ' other question(s) only show depending on this one and will then always be shown.'
+      : '';
+    if (!window.confirm('Delete this field?' + warn)) return;
     try {
       const res = await api.delete('/fields.php?id=' + id);
       if (res.data?.success) {
@@ -160,6 +192,10 @@ export function Settings() {
         field_type: fieldForm.field_type,
         is_required: fieldForm.is_required,
         options: parsedOptions,
+        help_text: fieldForm.help_text.trim() === '' ? null : fieldForm.help_text,
+        ...(fieldForm.sort_order !== '' ? { sort_order: Number(fieldForm.sort_order) } : {}),
+        show_if_field_id: fieldForm.show_if_field_id === '' ? null : Number(fieldForm.show_if_field_id),
+        show_if_value: fieldForm.show_if_field_id === '' ? null : fieldForm.show_if_value,
         id: editingFieldId
     };
 
@@ -173,7 +209,9 @@ export function Settings() {
         if (res.data?.success) { setIsFieldModalOpen(false); fetchFields(selectedDeptForFields); }
         else alert(res.data?.error || 'Failed');
       }
-    } catch (err) {}
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to save question');
+    }
     setIsSubmitting(false);
   };
 
@@ -513,14 +551,22 @@ export function Settings() {
                 {selectedDeptForFields ? (
                     <div className="table-responsive">
                       <table className="settings-table">
-                        <thead><tr><th>Label</th><th>Type</th><th>Required</th><th>Options (if dropdown)</th><th style={{ width: '100px' }}>Actions</th></tr></thead>
+                        <thead><tr><th style={{ width: '90px' }}>Order</th><th>Label</th><th>Type</th><th>Required</th><th>Options (if dropdown)</th><th>Condition</th><th style={{ width: '100px' }}>Actions</th></tr></thead>
                         <tbody>
-                          {fields.map(f => (
+                          {fields.map((f, idx) => (
                             <tr key={f.id}>
-                              <td>{f.field_label}</td>
+                              <td>
+                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                  <span>{f.sort_order}</span>
+                                  <button className="icon-btn" title="Move up" disabled={idx === 0} onClick={() => moveField(idx, -1)}>&#9650;</button>
+                                  <button className="icon-btn" title="Move down" disabled={idx === fields.length - 1} onClick={() => moveField(idx, 1)}>&#9660;</button>
+                                </div>
+                              </td>
+                              <td>{f.field_label}{f.help_text ? <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'pre-line' }}>{f.help_text}</div> : null}</td>
                               <td>{f.field_type}</td>
                               <td>{f.is_required ? 'Yes' : 'No'}</td>
-                              <td>{f.options ? JSON.parse(f.options).join(', ') : '-'}</td>
+                              <td>{parseFieldOptions(f).join(', ') || '-'}</td>
+                              <td style={{ fontSize: '0.8rem' }}>{conditionSummary(f)}</td>
                               <td>
                                 <div style={{ display: 'flex', gap: '8px' }}>
                                   <button className="icon-btn" onClick={() => openFieldModal(f)}><Edit size={16} /></button>
@@ -716,6 +762,8 @@ export function Settings() {
                     <option value="text">Text Input</option>
                     <option value="textarea">Multi-line Text (Textarea)</option>
                     <option value="dropdown">Dropdown Options</option>
+                    <option value="date">Date</option>
+                    <option value="number">Number</option>
                 </select>
               </div>
               {fieldForm.field_type === 'dropdown' && (
@@ -724,9 +772,50 @@ export function Settings() {
                     <input required type="text" className="form-input" placeholder="e.g. ERP Not Working, Internet Issue" value={fieldForm.options} onChange={e => setFieldForm({...fieldForm, options: e.target.value})} />
                   </div>
               )}
+              <div className="form-group">
+                <label>Help text (optional, shown under the question; line breaks are kept)</label>
+                <textarea className="form-input" rows={3} value={fieldForm.help_text} onChange={e => setFieldForm({...fieldForm, help_text: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Sort order (lower shows first)</label>
+                <input type="number" className="form-input" value={fieldForm.sort_order} onChange={e => setFieldForm({...fieldForm, sort_order: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Show only when</label>
+                <select className="form-input" value={fieldForm.show_if_field_id} onChange={e => setFieldForm({...fieldForm, show_if_field_id: e.target.value, show_if_value: ''})}>
+                    <option value="">Always show</option>
+                    {[...fields].filter(x => String(x.id) !== String(editingFieldId)).sort((a, b) => (a.field_type === 'dropdown' ? 0 : 1) - (b.field_type === 'dropdown' ? 0 : 1)).map(x => (
+                      <option key={x.id} value={x.id}>{x.field_label}{x.field_type === 'dropdown' ? '' : ' (' + x.field_type + ')'}</option>
+                    ))}
+                </select>
+                {fieldForm.show_if_field_id !== '' && (() => {
+                  const parent = fieldById(fieldForm.show_if_field_id);
+                  const parentOptions = parent ? parseFieldOptions(parent) : [];
+                  const selected = fieldForm.show_if_value.split('|').map(v => v.trim()).filter(Boolean);
+                  if (parent && parent.field_type === 'dropdown' && parentOptions.length > 0) {
+                    return (
+                      <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Show when the answer is any of:</span>
+                        {parentOptions.map(opt => (
+                          <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: 0 }}>
+                            <input type="checkbox" checked={selected.includes(opt)} onChange={e => {
+                              const next = e.target.checked ? [...selected, opt] : selected.filter(v => v !== opt);
+                              setFieldForm({...fieldForm, show_if_value: parentOptions.filter(o => next.includes(o)).concat(next.filter(v => !parentOptions.includes(v))).join('|')});
+                            }} />
+                            {opt}
+                          </label>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return (
+                    <input required type="text" className="form-input" style={{ marginTop: '8px' }} placeholder="Accepted answers, separated by | (e.g. Yes|Maybe)" value={fieldForm.show_if_value} onChange={e => setFieldForm({...fieldForm, show_if_value: e.target.value})} />
+                  );
+                })()}
+              </div>
               <div className="form-group" style={{flexDirection: 'row', alignItems: 'center', gap: '10px'}}>
                 <input type="checkbox" id="req" checked={fieldForm.is_required === 1} onChange={e => setFieldForm({...fieldForm, is_required: e.target.checked ? 1 : 0})} />
-                <label htmlFor="req" style={{marginBottom: 0}}>Is this question required?</label>
+                <label htmlFor="req" style={{marginBottom: 0}}>Is this question required? (only enforced when the question is shown)</label>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={() => setIsFieldModalOpen(false)}>Cancel</button>

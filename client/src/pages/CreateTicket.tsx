@@ -1,7 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuthStore } from '../store';
+import { computeVisibility } from '../lib/fieldVisibility';
 import { Briefcase, CheckCircle2, UploadCloud, AlertCircle } from 'lucide-react';
 
 export function CreateTicket() {
@@ -22,6 +23,21 @@ export function CreateTicket() {
   const [loadingFields, setLoadingFields] = useState(false);
   const navigate = useNavigate();
 
+  // Which custom questions are currently shown (conditional questions: see lib/fieldVisibility.ts).
+  const visibility = useMemo(() => computeVisibility(dynamicFields, customValues), [dynamicFields, customValues]);
+
+  // When a question becomes hidden, forget its answer so it is never submitted.
+  useEffect(() => {
+    const stale = dynamicFields.filter(f => visibility[String(f.id)] === false && customValues[f.id] !== undefined && customValues[f.id] !== '');
+    if (stale.length > 0) {
+      setCustomValues(prev => {
+        const next = { ...prev };
+        stale.forEach(f => { delete next[f.id]; });
+        return next;
+      });
+    }
+  }, [visibility, dynamicFields, customValues]);
+
   useEffect(() => {
     api.get('/departments.php').then(res => {
       if (res.data?.success) setDepartments(res.data.data);
@@ -30,6 +46,7 @@ export function CreateTicket() {
 
   // Fetch dynamic fields when department changes
   useEffect(() => {
+    setCustomValues({});
     if (!selectedDept) {
       setDynamicFields([]);
       setCategories([]);
@@ -67,6 +84,13 @@ export function CreateTicket() {
     
     setIsSubmitting(true);
     try {
+      // Only answers to currently visible questions are submitted.
+      const submittedValues: Record<string, string> = {};
+      dynamicFields.forEach(f => {
+        const v = customValues[f.id];
+        if (visibility[String(f.id)] && v !== undefined && v !== '') submittedValues[f.id] = v;
+      });
+
       const payload = {
         title,
         description,
@@ -74,7 +98,7 @@ export function CreateTicket() {
         category,
         department_id: selectedDept,
         creator_id: user.id,
-        custom_values: customValues
+        custom_values: submittedValues
       };
 
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
@@ -213,43 +237,73 @@ export function CreateTicket() {
                   <AlertCircle size={16} /> Department Specific Questions
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  {dynamicFields.map((field) => (
-                    <div key={field.id} className="col-span-1">
+                  {dynamicFields.filter(field => visibility[String(field.id)]).map((field) => {
+                    const inputClass = "w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50";
+                    const required = Boolean(Number(field.is_required));
+                    const setValue = (v: string) => setCustomValues(prev => ({ ...prev, [field.id]: v }));
+                    let options: string[] = [];
+                    if (field.field_type === 'dropdown' && field.options) {
+                      try { options = JSON.parse(field.options); } catch { options = []; }
+                    }
+                    return (
+                    <div key={field.id} className={field.field_type === 'textarea' || field.help_text ? 'col-span-1 sm:col-span-2' : 'col-span-1'}>
                       <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                        {field.field_label} {Boolean(field.is_required) && <span className="text-red-500">*</span>}
+                        {field.field_label} {required && <span className="text-red-500">*</span>}
                       </label>
+                      {field.help_text && (
+                        <p className="text-xs text-[var(--text-secondary)] mb-2 whitespace-pre-line">{field.help_text}</p>
+                      )}
                       {field.field_type === 'dropdown' ? (
                         <select 
-                          className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 appearance-none" 
-                          required={field.is_required}
+                          className={inputClass + " appearance-none"}
+                          required={required}
                           value={customValues[field.id] || ''}
-                          onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
+                          onChange={(e) => setValue(e.target.value)}
                           style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2394a3b8\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 0.75rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.2em 1.2em' }}
                         >
                           <option value="">Select...</option>
-                          {field.options && JSON.parse(field.options).map((opt: string) => (
+                          {options.map((opt: string) => (
                             <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </select>
                       ) : field.field_type === 'textarea' ? (
                         <textarea 
-                          className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50 resize-y" 
+                          className={inputClass + " resize-y"}
                           rows={2}
-                          required={field.is_required}
+                          required={required}
                           value={customValues[field.id] || ''}
-                          onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
+                          onChange={(e) => setValue(e.target.value)}
                         ></textarea>
+                      ) : field.field_type === 'date' ? (
+                        <input 
+                          type="date" 
+                          className={inputClass}
+                          required={required}
+                          value={customValues[field.id] || ''}
+                          onChange={(e) => setValue(e.target.value)}
+                        />
+                      ) : field.field_type === 'number' ? (
+                        <input 
+                          type="number" 
+                          min={0}
+                          step="any"
+                          className={inputClass}
+                          required={required}
+                          value={customValues[field.id] || ''}
+                          onChange={(e) => setValue(e.target.value)}
+                        />
                       ) : (
                         <input 
                           type="text" 
-                          className="w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50" 
-                          required={field.is_required}
+                          className={inputClass}
+                          required={required}
                           value={customValues[field.id] || ''}
-                          onChange={(e) => setCustomValues({...customValues, [field.id]: e.target.value})}
+                          onChange={(e) => setValue(e.target.value)}
                         />
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
