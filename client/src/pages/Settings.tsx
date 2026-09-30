@@ -8,6 +8,7 @@ interface Department {
   name: string;
   code?: string;
   description: string;
+  notification_emails?: string | null;
 }
 
 interface Category { id: string; name: string; department_id: string; department_name?: string; }
@@ -42,7 +43,7 @@ export function Settings() {
   const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
   const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
   const [deptForm, setDeptForm] = useState({
-    name: '', code: '', description: ''
+    name: '', code: '', description: '', notification_emails: ''
   });
 
   // Notifications & Automation state
@@ -332,10 +333,10 @@ export function Settings() {
   const openDeptModal = (dept?: Department) => {
     if (dept) {
       setEditingDeptId(dept.id);
-      setDeptForm({ name: dept.name, code: dept.code || '', description: dept.description || '' });
+      setDeptForm({ name: dept.name, code: dept.code || '', description: dept.description || '', notification_emails: dept.notification_emails || '' });
     } else {
       setEditingDeptId(null);
-      setDeptForm({ name: '', code: '', description: '' });
+      setDeptForm({ name: '', code: '', description: '', notification_emails: '' });
     }
     setIsDeptModalOpen(true);
   };
@@ -845,6 +846,10 @@ export function Settings() {
               <div className="form-group">
                 <label>Description</label>
                 <textarea className="form-input" rows={3} value={deptForm.description} onChange={e => setDeptForm({...deptForm, description: e.target.value})}></textarea>
+              </div>
+              <div className="form-group">
+                <label>Notification emails (comma separated)</label>
+                <input type="text" className="form-input" placeholder="it-team@example.com, lead@example.com" value={deptForm.notification_emails} onChange={e => setDeptForm({...deptForm, notification_emails: e.target.value})} />
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn-secondary" onClick={() => setIsDeptModalOpen(false)}>Cancel</button>

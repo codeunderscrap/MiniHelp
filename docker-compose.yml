@@ -41,6 +41,16 @@ services:
       # Optional: without these a VAPID key pair is generated once and kept in the database.
       MINIHELP_VAPID_PUBLIC_KEY: ${MINIHELP_VAPID_PUBLIC_KEY:-}
       MINIHELP_VAPID_PRIVATE_KEY: ${MINIHELP_VAPID_PRIVATE_KEY:-}
+      # Email notifications (docs/EMAIL_NOTIFICATIONS.md). Off until SMTP_HOST is set.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-}
+      MAIL_ENABLED: ${MAIL_ENABLED:-}
+      APP_URL: ${APP_URL:-}
     depends_on:
       - db
 

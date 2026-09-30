@@ -5,11 +5,25 @@ setup_cors();
 
 include_once '../config/db.php';
 require_once '../config/auth_middleware.php';
+require_once '../config/mailer.php';
 
 $database = new Database();
 $db = $database->getConnection();
 $me = require_auth($db);
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') require_manager($me);
+mail_ensure_department_column($db);
+
+// Validates the optional notification_emails field. Returns [normalised value or null, error or null].
+function parse_notification_emails($raw): array {
+    if ($raw === null) return [null, null];
+    if (!is_string($raw)) return [null, 'Notification emails must be text.'];
+    $parsed = mail_parse_address_list($raw);
+    if ($parsed['invalid']) {
+        return [null, 'Invalid notification email address: ' . implode(', ', array_slice($parsed['invalid'], 0, 5))];
+    }
+    if (count($parsed['valid']) > 20) return [null, 'At most 20 notification emails are allowed.'];
+    return [$parsed['valid'] ? implode(', ', $parsed['valid']) : null, null];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
@@ -18,6 +32,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt->execute();
         
         $departments = $stmt->fetchAll();
+        if (!$me->is_manager()) {
+            foreach ($departments as &$dept) unset($dept['notification_emails']);
+            unset($dept);
+        }
         
         echo json_encode([
             "success" => true,
@@ -30,11 +48,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 } else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
     if (!empty($data['name']) && !empty($data['code'])) {
+        [$notifyEmails, $notifyError] = parse_notification_emails($data['notification_emails'] ?? null);
+        if ($notifyError) {
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => $notifyError]);
+            exit;
+        }
         try {
-            $query = "INSERT INTO departments (name, code, description) VALUES (:n, :c, :d)";
+            $query = "INSERT INTO departments (name, code, description, notification_emails) VALUES (:n, :c, :d, :ne)";
             $stmt = $db->prepare($query);
             $desc = isset($data['description']) ? $data['description'] : '';
-            $stmt->execute([":n" => $data['name'], ":c" => $data['code'], ":d" => $desc]);
+            $stmt->execute([":n" => $data['name'], ":c" => $data['code'], ":d" => $desc, ":ne" => $notifyEmails]);
             echo json_encode(["success" => true, "message" => "Department created successfully"]);
         } catch(PDOException $e) {
             http_response_code(500);
@@ -48,11 +72,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $id = isset($_GET['id']) ? $_GET['id'] : null;
     $data = json_decode(file_get_contents("php://input"), true);
     if ($id && !empty($data['name']) && !empty($data['code'])) {
+        // Only touch notification_emails when the request carries it, so other callers never clear it.
+        $hasNotify = array_key_exists('notification_emails', $data);
+        [$notifyEmails, $notifyError] = parse_notification_emails($data['notification_emails'] ?? null);
+        if ($notifyError) {
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => $notifyError]);
+            exit;
+        }
         try {
-            $query = "UPDATE departments SET name = :n, code = :c, description = :d WHERE id = :id";
+            $query = "UPDATE departments SET name = :n, code = :c, description = :d"
+                   . ($hasNotify ? ", notification_emails = :ne" : "") . " WHERE id = :id";
             $stmt = $db->prepare($query);
             $desc = isset($data['description']) ? $data['description'] : '';
-            $stmt->execute([":n" => $data['name'], ":c" => $data['code'], ":d" => $desc, ":id" => $id]);
+            $params = [":n" => $data['name'], ":c" => $data['code'], ":d" => $desc, ":id" => $id];
+            if ($hasNotify) $params[":ne"] = $notifyEmails;
+            $stmt->execute($params);
             echo json_encode(["success" => true, "message" => "Department updated"]);
         } catch(PDOException $e) {
             http_response_code(500);

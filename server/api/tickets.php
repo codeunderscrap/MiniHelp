@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
 // api/tickets.php
@@ -340,6 +340,14 @@ else if ($method === 'POST') {
             } catch (\Throwable $e) {
                 error_log("Push Notification Error: " . $e->getMessage());
             }
+
+            // --- EMAIL NOTIFICATION (best effort; queued and sent after the response) ---
+            try {
+                require_once '../config/notify_email.php';
+                notify_ticket_created($db, (int)$last_id, (int)$data['creator_id']);
+            } catch (\Throwable $e) {
+                error_log("Email Notification Error: " . $e->getMessage());
+            }
             
             echo json_encode(["success" => true, "data" => ["id" => $last_id, "ticket_number" => $ticket_number]]);
         } catch(PDOException $e) {
@@ -370,6 +378,10 @@ else if ($method === 'PATCH') {
             exit();
         }
         try {
+            $prevStmt = $db->prepare("SELECT status, assignee_id FROM tickets WHERE id = :id");
+            $prevStmt->execute([":id" => $id]);
+            $prev = $prevStmt->fetch(PDO::FETCH_ASSOC) ?: ['status' => null, 'assignee_id' => null];
+
             $query = "UPDATE tickets SET status=:status";
             $params = [":status" => $data['status'], ":id" => $id];
             if(isset($data['assignee_id'])) {
@@ -379,6 +391,15 @@ else if ($method === 'PATCH') {
             $query .= " WHERE id = :id";
             $stmt = $db->prepare($query);
             $stmt->execute($params);
+
+            // --- EMAIL NOTIFICATION (best effort; queued and sent after the response) ---
+            try {
+                require_once '../config/notify_email.php';
+                notify_ticket_updated($db, (int)$id, $me->user_id, $prev['status'],
+                                      $prev['assignee_id'] === null ? null : (int)$prev['assignee_id']);
+            } catch (\Throwable $e) {
+                error_log("Email Notification Error: " . $e->getMessage());
+            }
             
             echo json_encode(["success" => true, "message" => "Ticket updated."]);
         } catch(PDOException $e) {
