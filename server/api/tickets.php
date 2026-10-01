@@ -446,10 +446,3 @@ else if ($method === 'DELETE') {
         echo json_encode(["success" => false, "error" => "Missing ticket ID."]);
     }
 }
-?>
-
-
-
-
-
-
