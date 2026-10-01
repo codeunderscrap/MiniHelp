@@ -231,13 +231,13 @@ export function CreateTicket() {
               </div>
             )}
 
-            {!loadingFields && dynamicFields.length > 0 && (
+            {!loadingFields && dynamicFields.filter(f => visibility[String(f.id)] && (!f.category_id || (categories.find(c => c.name === category)?.id === f.category_id))).length > 0 && (
               <div className="p-5 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border)] space-y-4">
                 <h3 className="text-sm font-semibold text-[var(--accent-primary)] uppercase tracking-wider mb-2 flex items-center gap-2">
                   <AlertCircle size={16} /> Department Specific Questions
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  {dynamicFields.filter(field => visibility[String(field.id)]).map((field) => {
+                  {dynamicFields.filter(field => visibility[String(field.id)] && (!field.category_id || (categories.find(c => c.name === category)?.id === field.category_id))).map((field) => {
                     const inputClass = "w-full bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg px-4 py-2.5 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/50";
                     const required = Boolean(Number(field.is_required));
                     const setValue = (v: string) => setCustomValues(prev => ({ ...prev, [field.id]: v }));
@@ -355,6 +355,8 @@ export function CreateTicket() {
     </div>
   );
 }
+
+
 
 
 

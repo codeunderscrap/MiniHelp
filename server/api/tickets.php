@@ -224,21 +224,21 @@ else if ($method === 'POST') {
             
             if ($auto_assignee_id) {
                 $query = "INSERT INTO tickets SET ticket_number=:tn, title=:title, description=:desc, 
-                          priority=:priority, category=:category, department_id=:dept_id, creator_id=:creator_id, 
+                          priority=:priority, department_id=:dept_id, creator_id=:creator_id, 
                           assignee_id=:assignee, status='assigned'";
                 $stmt = $db->prepare($query);
                 $stmt->execute([
                     ":tn" => $ticket_number, ":title" => $data['title'], ":desc" => $data['description'],
-                    ":priority" => $priority, ":category" => $data['category'] ?? 'General', ":dept_id" => $data['department_id'], ":creator_id" => $data['creator_id'],
+                    ":priority" => $priority, ":dept_id" => $data['department_id'], ":creator_id" => $data['creator_id'],
                     ":assignee" => $auto_assignee_id
                 ]);
             } else {
                 $query = "INSERT INTO tickets SET ticket_number=:tn, title=:title, description=:desc, 
-                          priority=:priority, category=:category, department_id=:dept_id, creator_id=:creator_id, status='open'";
+                          priority=:priority, department_id=:dept_id, creator_id=:creator_id, status='open'";
                 $stmt = $db->prepare($query);
                 $stmt->execute([
                     ":tn" => $ticket_number, ":title" => $data['title'], ":desc" => $data['description'],
-                    ":priority" => $priority, ":category" => $data['category'] ?? 'General', ":dept_id" => $data['department_id'], ":creator_id" => $data['creator_id']
+                    ":priority" => $priority, ":dept_id" => $data['department_id'], ":creator_id" => $data['creator_id']
                 ]);
             }
             
@@ -447,6 +447,7 @@ else if ($method === 'DELETE') {
     }
 }
 ?>
+
 
 
 

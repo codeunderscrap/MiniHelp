@@ -26,7 +26,18 @@ class Database {
             echo json_encode(["success" => false, "message" => "Database Connection error: " . $exception->getMessage()]);
             exit;
         }
+            // Auto-migrate form_fields to support category-specific questions
+            try {
+                $this->conn->exec("ALTER TABLE form_fields ADD COLUMN category_id INT NULL DEFAULT NULL AFTER department_id");
+            } catch(PDOException $e) {}
+
+            // Auto-cleanup unwanted fields for the user
+            try {
+                $this->conn->exec("DELETE FROM form_fields WHERE field_label LIKE '%Operating System%' OR field_label LIKE '%Error Message%'");
+            } catch(PDOException $e) {}
         return $this->conn;
     }
 }
 ?>
+
+

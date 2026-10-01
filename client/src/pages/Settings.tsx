@@ -135,7 +135,7 @@ export function Settings() {
     setLoading(true);
     fetchDepts();
     if (activeTab === 'users') fetchUsers();
-    if (activeTab === 'categories') fetchCategories();
+    if (activeTab === 'categories' || activeTab === 'fields') fetchCategories();
     if (activeTab === 'fields' && selectedDeptForFields) fetchFields(selectedDeptForFields);
     if (activeTab === 'notifications' || activeTab === 'automation') fetchAdvancedSettings();
     setLoading(false);
@@ -751,10 +751,16 @@ export function Settings() {
             <div className="modal-header">
               <h2>{editingFieldId ? 'Edit Question' : 'Add Question'}</h2>
               <button className="icon-btn" onClick={() => setIsFieldModalOpen(false)}><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSaveField} className="modal-form">
-              <div className="form-group">
-                <label>Question Label *</label>
+            </div>              <form onSubmit={handleSaveField} className="modal-form">
+                <div className="form-group">
+                  <label>Limit to Problem Type (Optional)</label>
+                  <select className="form-input" value={fieldForm.category_id || ''} onChange={e => setFieldForm({...fieldForm, category_id: e.target.value})}>
+                      <option value="">-- Show for all problem types --</option>
+                      {categories.filter(c => c.department_id == selectedDeptForFields).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Question Label *</label>
                 <input required type="text" className="form-input" value={fieldForm.field_label} onChange={e => setFieldForm({...fieldForm, field_label: e.target.value})} />
               </div>
               <div className="form-group">
@@ -862,6 +868,13 @@ export function Settings() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
 
 

@@ -80,6 +80,8 @@ function build_field(PDO $db, object $data, array $base, ?int $selfId): array {
     $has = function (string $k) use ($data) { return property_exists($data, $k); };
     $f = $base;
 
+    if ($has('category_id')) $f['category_id'] = $data->category_id === '' ? null : (int)$data->category_id;
+
     if ($has('field_label')) $f['field_label'] = trim((string)$data->field_label);
     if ($f['field_label'] === '') fields_fail(400, "field_label is required");
     if (mb_strlen($f['field_label']) > 255) fields_fail(400, "field_label is too long (max 255)");
@@ -161,7 +163,7 @@ if ($method === 'GET') {
             if (!$d->fetchColumn()) fields_fail(400, "Unknown department_id");
 
             $f = build_field($db, $data, [
-                'department_id' => $deptId, 'field_label' => '', 'field_type' => 'text', 'is_required' => 0,
+                'department_id' => $deptId, 'category_id' => null, 'field_label' => '', 'field_type' => 'text', 'is_required' => 0,
                 'options' => null, 'help_text' => null, 'sort_order' => null,
                 'show_if_field_id' => null, 'show_if_value' => null,
             ], null);
@@ -172,10 +174,10 @@ if ($method === 'GET') {
                 $f['sort_order'] = (int)$m->fetchColumn();
             }
 
-            $stmt = $db->prepare("INSERT INTO form_fields (department_id, field_label, field_type, is_required, options, help_text, sort_order, show_if_field_id, show_if_value)
-                                  VALUES (:did, :label, :type, :req, :opt, :help, :sort, :pid, :pval)");
+            $stmt = $db->prepare("INSERT INTO form_fields (department_id, category_id, field_label, field_type, is_required, options, help_text, sort_order, show_if_field_id, show_if_value)
+                                  VALUES (:did, :cat, :label, :type, :req, :opt, :help, :sort, :pid, :pval)");
             $stmt->execute([
-                ':did' => $deptId, ':label' => $f['field_label'], ':type' => $f['field_type'], ':req' => $f['is_required'],
+                ':did' => $deptId, ':cat' => $f['category_id'], ':label' => $f['field_label'], ':type' => $f['field_type'], ':req' => $f['is_required'],
                 ':opt' => $f['options'], ':help' => $f['help_text'], ':sort' => $f['sort_order'],
                 ':pid' => $f['show_if_field_id'], ':pval' => $f['show_if_value'],
             ]);
@@ -222,10 +224,10 @@ if ($method === 'GET') {
             $existing['show_if_field_id'] = $existing['show_if_field_id'] !== null ? (int)$existing['show_if_field_id'] : null;
 
             $f = build_field($db, $data, $existing, $id);
-            $stmt = $db->prepare("UPDATE form_fields SET field_label = :label, field_type = :type, is_required = :req, options = :opt,
+            $stmt = $db->prepare("UPDATE form_fields SET category_id = :cat, field_label = :label, field_type = :type, is_required = :req, options = :opt,
                                   help_text = :help, sort_order = :sort, show_if_field_id = :pid, show_if_value = :pval WHERE id = :id");
             $stmt->execute([
-                ':label' => $f['field_label'], ':type' => $f['field_type'], ':req' => $f['is_required'],
+                ':cat' => $f['category_id'], ':label' => $f['field_label'], ':type' => $f['field_type'], ':req' => $f['is_required'],
                 ':opt' => $f['options'], ':help' => $f['help_text'], ':sort' => (int)$f['sort_order'],
                 ':pid' => $f['show_if_field_id'], ':pval' => $f['show_if_value'], ':id' => $id,
             ]);
@@ -260,3 +262,5 @@ if ($method === 'GET') {
     echo json_encode(["success" => false, "error" => "Method not allowed"]);
 }
 ?>
+
+
